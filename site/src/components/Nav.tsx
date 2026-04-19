@@ -1,4 +1,5 @@
 import "./Nav.css";
+import { SUBMARINE_URL } from "../config";
 
 export default function Nav() {
   return (
@@ -19,9 +20,9 @@ export default function Nav() {
           <a href="#flow">Flow</a>
         </nav>
 
-        <a href="#office" className="nav-cta mono">
+        <a href={SUBMARINE_URL} className="nav-cta mono">
           <span className="dot" />
-          open 24/7
+          board submarine
         </a>
       </div>
     </header>

@@ -1,18 +1,39 @@
 import Canvas from "@/components/office/Canvas";
 import ChatPanel from "@/components/chat/ChatPanel";
+import DepthHUD from "@/components/office/scene/DepthHUD";
+import Bubbles from "@/components/office/scene/Bubbles";
 
 /**
- * /office — the main student-facing experience.
+ * /office — Bathysphere-7. The student-facing experience.
  *
- * Layout: PixiJS canvas on the left, chat panel on the right, file-drop
- * zone baked into the canvas itself. Subscribes to the event bus and
- * animates every agent action.
+ * Layout:
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │              DEPTH HUD (top)                         │
+ *   ├──────────────────────────────┬───────────────────────┤
+ *   │                              │                       │
+ *   │        THE SUBMARINE          │        COMMS         │
+ *   │          (Canvas)             │      (ChatPanel)     │
+ *   │                              │                       │
+ *   ├──────────────────────────────┴───────────────────────┤
+ *   │              DEPTH HUD (bottom, fixed)               │
+ *   └──────────────────────────────────────────────────────┘
+ *
+ * Bubbles render on a fixed overlay so they hug the whole viewport gutter.
  */
 export default function OfficePage() {
   return (
-    <main className="grid grid-cols-1 lg:grid-cols-[1fr_420px] min-h-screen">
-      <Canvas />
-      <ChatPanel />
+    <main
+      className="relative flex min-h-screen flex-col"
+      style={{ background: "var(--abyss-deep)" }}
+    >
+      <DepthHUD />
+
+      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_420px]">
+        <Canvas />
+        <ChatPanel />
+      </div>
+
+      <Bubbles />
     </main>
   );
 }

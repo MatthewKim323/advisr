@@ -1,4 +1,5 @@
 import "./Hero.css";
+import { SUBMARINE_URL } from "../config";
 
 const tickerItems = [
   "archivist parsing transcript.pdf",
@@ -43,8 +44,8 @@ export default function Hero() {
           </p>
 
           <div className="hero-ctas">
-            <a href="#office" className="btn">
-              Walk into the office
+            <a href={SUBMARINE_URL} className="btn">
+              Board the submarine
               <span aria-hidden>→</span>
             </a>
             <a href="#team" className="btn ghost">

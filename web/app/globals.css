@@ -2,16 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google Fonts: pixel display + CRT-mono HUD + serif body copy */
+@import url("https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap");
+
 :root {
-  --void: #0a1311;
-  --paper: #f1e4c5;
-  --lamp: #f4b94a;
-  --rust: #c25a3e;
-  --teal: #4f8d89;
-  --plum: #6b4a7c;
+  /* ── Bathysphere palette ──────────────────────────────────────── */
+  /* Everything outside the hull — the abyss */
+  --abyss: #03121e;
+  --abyss-deep: #010812;
+  --abyss-glow: #0a2a44;
+
+  /* Inside the sub — warm-lit steel */
+  --void: #0a1a26;
+  --hull: #142a3d;
+  --hull-lit: #1d3a52;
+  --rivet: #2a4a64;
+  --brass: #e6a559;
+  --brass-dim: #9c6f3b;
+
+  /* Accents — life, data, alarms */
+  --bio: #4dd8d3;        /* bioluminescent teal — data, claims, links */
+  --sonar: #7cff93;      /* sonar return green — HUD text */
+  --coral: #ff7557;      /* coral / alert */
+  --pearl: #e8f1ea;      /* primary text on dark */
+  --kelp: #5ea687;       /* muted mid tone */
+
+  /* Typography */
+  --font-display: "Silkscreen", ui-monospace, monospace;
+  --font-hud: "VT323", ui-monospace, monospace;
+  --font-body: "Fraunces", Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html, body {
-  background: var(--void);
-  color: var(--paper);
+  margin: 0;
+  padding: 0;
+  background: var(--abyss-deep);
+  color: var(--pearl);
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
 }
+
+/* Kill smoothing on pixel-font elements so Silkscreen stays crisp */
+.pixel, .hud, [class*="pixel-"], [class*="hud-"] {
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: auto;
+  font-smooth: never;
+  image-rendering: pixelated;
+}
+
+/* Every <img> with data-pixel stays crisp */
+img[data-pixel] {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ── Shared keyframes for underwater motion ───────────────────── */
+
+@keyframes caustic-drift {
+  0%   { transform: translate(0, 0)       scale(1);    opacity: 0.28; }
+  50%  { transform: translate(-14px, 8px) scale(1.04); opacity: 0.42; }
+  100% { transform: translate(0, 0)       scale(1);    opacity: 0.28; }
+}
+
+@keyframes bubble-rise {
+  0%   { transform: translateY(0)       scale(0.8); opacity: 0;   }
+  10%  {                                            opacity: 0.8; }
+  90%  {                                            opacity: 0.8; }
+  100% { transform: translateY(-110vh)  scale(1.1); opacity: 0;   }
+}
+
+@keyframes fish-drift {
+  0%   { transform: translate(-20%, 20%) scaleX(1); }
+  48%  { transform: translate(110%, -10%) scaleX(1); }
+  49%  { transform: translate(110%, -10%) scaleX(-1); }
+  50%  { transform: translate(110%, -10%) scaleX(-1); }
+  98%  { transform: translate(-20%, 30%) scaleX(-1); }
+  99%  { transform: translate(-20%, 30%) scaleX(1); }
+  100% { transform: translate(-20%, 20%) scaleX(1); }
+}
+
+@keyframes lamp-flicker {
+  0%, 97%, 100% { opacity: 1; }
+  98%           { opacity: 0.62; }
+  99%           { opacity: 0.9;  }
+}
+
+@keyframes sonar-pulse {
+  0%   { transform: scale(0.3); opacity: 0.8; }
+  100% { transform: scale(1);   opacity: 0;   }
+}
+
+@keyframes cursor-blink {
+  0%, 50%  { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes chute-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(124,255,147,0.25), 0 0 24px rgba(124,255,147,0.08); }
+  50%      { box-shadow: inset 0 0 0 1px rgba(124,255,147,0.45), 0 0 36px rgba(124,255,147,0.22); }
+}
+
+@keyframes chute-pulse-hot {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(230,165,89,0.65), 0 0 48px rgba(230,165,89,0.35); }
+  50%      { box-shadow: inset 0 0 0 2px rgba(230,165,89,0.9),  0 0 70px rgba(230,165,89,0.55); }
+}
+
+@keyframes sonar-sweep {
+  0%   { transform: rotate(0deg);   opacity: 0.9; }
+  70%  { opacity: 0.2; }
+  100% { transform: rotate(360deg); opacity: 0;   }
+}
+
+@keyframes tape-feed {
+  from { background-position-y: 0; }
+  to   { background-position-y: 12px; }
+}
+
+/* Utility classes — small but load-bearing */
+.hud-text  { font-family: var(--font-hud);     letter-spacing: 0.02em; line-height: 1; }
+.pixel-text { font-family: var(--font-display); letter-spacing: 0.04em; line-height: 1; }

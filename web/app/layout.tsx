@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Advisr — The Counseling Office",
-  description: "A pixel-art AI counseling office for every first-gen student.",
+  title: "Advisr // Bathysphere-7",
+  description:
+    "A pixel-art AI counseling submarine that gives every student the team of specialists rich kids hire for $50,000.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
