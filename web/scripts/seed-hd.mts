@@ -27,10 +27,10 @@ import { config as loadEnv } from "dotenv";
 import { HumanDelta } from "humandelta";
 import { resolve } from "node:path";
 
-import { MATCH_MAKER_SEEDS } from "./seed/match-maker.mjs";
-import { BURSAR_SEEDS } from "./seed/bursar.mjs";
-import { SCOUT_SEEDS } from "./seed/scout.mjs";
-import type { SeedEntry, SeedSpecialist } from "./seed/types.mjs";
+import { MATCH_MAKER_SEEDS } from "../lib/humandelta/seeds/match-maker.mjs";
+import { BURSAR_SEEDS } from "../lib/humandelta/seeds/bursar.mjs";
+import { SCOUT_SEEDS } from "../lib/humandelta/seeds/scout.mjs";
+import type { SeedEntry, SeedSpecialist } from "../lib/humandelta/seeds/types.mjs";
 
 // ──────────────────────────────────────────────────────────────────────
 // Env loading — check .env.local first, fall back to .env
@@ -131,15 +131,26 @@ async function main() {
   else console.log("");
 
   // Pull existing jobs so we can dedupe by name. HD returns up to 100 per
-  // list() call by default — fine for our volume.
-  const existing = await hd.indexes.list({ limit: 200 });
-  const existingNames = new Set(existing.map((j) => j.name));
-
-  console.log(
-    c.dim(
-      `  existing index jobs: ${existing.length} (${existingNames.size} unique names)\n`,
-    ),
-  );
+  // list() call by default — fine for our volume. Skipped in --dry since
+  // we don't need network access just to print the plan.
+  let existingNames = new Set<string>();
+  if (!args.dry) {
+    try {
+      const existing = await hd.indexes.list({ limit: 200 });
+      existingNames = new Set(existing.map((j) => j.name));
+      console.log(
+        c.dim(
+          `  existing index jobs: ${existing.length} (${existingNames.size} unique names)\n`,
+        ),
+      );
+    } catch (err) {
+      console.log(
+        c.yellow(
+          `  ⚠ couldn't list existing jobs (${err instanceof Error ? err.message.slice(0, 60) : "unknown"}) — seeding without dedupe\n`,
+        ),
+      );
+    }
+  }
 
   const kickedOff: Array<{ name: string; id: string }> = [];
   let skipped = 0;
