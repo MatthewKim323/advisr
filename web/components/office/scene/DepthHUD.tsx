@@ -28,11 +28,17 @@ export default function DepthHUD() {
           backdropFilter: "blur(8px)",
         }}
       >
-        <span style={{ color: "var(--brass)" }}>
-          <span className="pixel-text" style={{ fontSize: 10, marginRight: 10, letterSpacing: "0.18em" }}>
-            ADVISR
+        <span className="flex items-center gap-4">
+          <SurfaceButton />
+          <span style={{ color: "var(--brass)" }}>
+            <span
+              className="pixel-text"
+              style={{ fontSize: 10, marginRight: 10, letterSpacing: "0.18em" }}
+            >
+              ADVISR
+            </span>
+            // BATHYSPHERE-7
           </span>
-          // BATHYSPHERE-7
         </span>
 
         <span className="flex items-center gap-6">
@@ -93,6 +99,79 @@ export default function DepthHUD() {
         </span>
       </div>
     </>
+  );
+}
+
+/**
+ * SurfaceButton — escape hatch to the landing page.
+ *
+ * Nautical metaphor: ascending = leaving the deep = back to the marketing
+ * "surface." Brass-framed pill with a small ascending-arrow pixel icon and
+ * a trailing bubble on hover. Respects NEXT_PUBLIC_LANDING_URL; falls back
+ * to Vite's dev default.
+ */
+function SurfaceButton() {
+  const href = process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:5173";
+  return (
+    <a
+      href={href}
+      aria-label="Surface — return to the landing page"
+      className="group relative inline-flex items-center gap-1.5 px-2.5 py-1 transition-[background,box-shadow] duration-200"
+      style={{
+        color: "var(--brass)",
+        textDecoration: "none",
+        background: "rgba(10,26,38,0.7)",
+        boxShadow:
+          "inset 0 0 0 1px rgba(230,165,89,0.45), inset 0 0 0 2px rgba(10,26,38,1), 0 0 0 0 rgba(230,165,89,0)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+          "inset 0 0 0 1px rgba(230,165,89,0.85), inset 0 0 0 2px rgba(10,26,38,1), 0 0 18px rgba(230,165,89,0.35)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLAnchorElement).style.boxShadow =
+          "inset 0 0 0 1px rgba(230,165,89,0.45), inset 0 0 0 2px rgba(10,26,38,1), 0 0 0 0 rgba(230,165,89,0)";
+      }}
+    >
+      {/* Ascending pixel arrow */}
+      <span
+        aria-hidden
+        className="relative inline-block"
+        style={{
+          width: 10,
+          height: 10,
+          animation: "ascend-arrow 1.6s ease-in-out infinite",
+        }}
+      >
+        <svg viewBox="0 0 10 10" width={10} height={10}>
+          {/* Shaft */}
+          <rect x={4} y={3} width={2} height={6} fill="var(--brass)" />
+          {/* Head */}
+          <rect x={2} y={3} width={6} height={1} fill="var(--brass)" />
+          <rect x={3} y={2} width={4} height={1} fill="var(--brass)" />
+          <rect x={4} y={1} width={2} height={1} fill="var(--brass)" />
+        </svg>
+        {/* Bubble trail — only on hover */}
+        <span
+          className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 opacity-0 group-hover:opacity-100"
+          style={{
+            width: 3,
+            height: 3,
+            borderRadius: "50%",
+            background: "var(--bio)",
+            boxShadow: "0 0 4px var(--bio)",
+            animation: "bubble-trail 1.1s ease-out infinite",
+          }}
+        />
+      </span>
+
+      <span
+        className="pixel-text"
+        style={{ fontSize: 10, letterSpacing: "0.22em" }}
+      >
+        SURFACE
+      </span>
+    </a>
   );
 }
 
