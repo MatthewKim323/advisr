@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { AgentEvent } from "./types";
+import { createClient as createSupabaseBrowser } from "@/lib/supabase/browser";
 
 /**
  * Subscribe to the agent event stream.
@@ -50,12 +51,59 @@ export function useOfficeEvents(onEvent: (e: AgentEvent) => void): void {
       "ingestion_started",
       "ingestion_finished",
       "response_to_user",
+      "dean_interjection",
+      "query_committed",
+      "query_hits_resolved",
+      "hero_close_fired",
     ];
     for (const t of types) es.addEventListener(t, handler);
+
+    // ── Supabase Realtime bridge ────────────────────────────────────────
+    // SSE handles single-process fanout. If the server ever runs more than
+    // one node (Vercel serverless, multi-region), events emitted from one
+    // node won't reach an SSE stream held open by another. The `events`
+    // table write is the cross-node channel, so we also subscribe to
+    // Postgres inserts and feed them into the same handler. Deduped by
+    // `(kind, payload)` where payload is the AgentEvent JSON.
+    //
+    // No-op when Supabase env vars aren't set, so preview deployments and
+    // tests don't need a live project.
+    let unsubscribeRealtime: (() => void) | null = null;
+    if (
+      typeof process !== "undefined" &&
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      try {
+        const supabase = createSupabaseBrowser();
+        const chan = supabase
+          .channel("nami-events")
+          .on(
+            // The `postgres_changes` channel event is typed narrowly by the
+            // Realtime SDK; we coerce the payload in the handler anyway.
+            "postgres_changes" as never,
+            { event: "INSERT", schema: "public", table: "events" } as never,
+            (msg: unknown) => {
+              const row = (msg as { new?: { payload?: AgentEvent } })?.new;
+              const payload = row?.payload;
+              if (!payload || typeof payload !== "object" || !("type" in payload))
+                return;
+              ref.current(payload as AgentEvent);
+            },
+          )
+          .subscribe();
+        unsubscribeRealtime = () => {
+          supabase.removeChannel(chan);
+        };
+      } catch {
+        // Realtime unavailable — SSE is still running, no loss of function.
+      }
+    }
 
     return () => {
       for (const t of types) es.removeEventListener(t, handler);
       es.close();
+      unsubscribeRealtime?.();
     };
   }, []);
 }

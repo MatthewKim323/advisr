@@ -27,6 +27,12 @@
   --pearl: #e8f1ea;      /* primary text on dark */
   --kelp: #5ea687;       /* muted mid tone */
 
+  /* Aliases — chat panel + HUD code historically used these names.
+     Keep them wired to the canonical palette so refactors don't black out
+     copy. Treat --foam / --foam-dim as the canonical in-sub text colors. */
+  --foam: var(--pearl);
+  --foam-dim: #8fb3c4;
+
   /* Typography */
   --font-display: "Silkscreen", ui-monospace, monospace;
   --font-hud: "VT323", ui-monospace, monospace;
@@ -134,6 +140,43 @@ img[data-pixel] {
   0%   { transform: translateY(0)    scale(0.4); opacity: 0; }
   20%  {                                         opacity: 0.9; }
   100% { transform: translateY(-14px) scale(1);  opacity: 0; }
+}
+
+/* Status pip on the agent thought-tooltip — blinks while the agent is mid-
+ * tool-call. Stepped so it reads "pixel" rather than a smooth fade. */
+@keyframes bubble-pip {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0.35; }
+}
+
+/* DropZone overlay — fades in + pulses the brass rim while a drag is
+ * in flight. Paired animations: fade the backdrop (fast), pulse the panel
+ * glow (slow loop). */
+@keyframes dropzone-fade-in {
+  0%   { opacity: 0;   transform: scale(0.985); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+@keyframes dropzone-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(230,165,89,0.7),
+      inset 0 0 0 3px rgba(10,26,38,1),
+      inset 0 0 0 4px rgba(156,111,59,0.55),
+      0 0 40px rgba(230,165,89,0.32);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(230,165,89,0.95),
+      inset 0 0 0 3px rgba(10,26,38,1),
+      inset 0 0 0 4px rgba(156,111,59,0.7),
+      0 0 90px rgba(230,165,89,0.55);
+  }
+}
+
+/* Proposal drawer row entry — quick dive-in from the right as claims land. */
+@keyframes drawer-row-in {
+  0%   { transform: translateX(18px); opacity: 0; }
+  100% { transform: translateX(0);    opacity: 1; }
 }
 
 /* Utility classes — small but load-bearing */

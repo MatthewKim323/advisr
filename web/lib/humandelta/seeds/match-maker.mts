@@ -3,56 +3,83 @@
  *
  * Match-Maker answers "what schools should I apply to / am I a reach for X."
  * Its domain allowlist is:
- *    collegescorecard.ed.gov, niche.com, ipeds.ed.gov, commondataset.org
+ *   wikipedia.org, collegescorecard.ed.gov, niche.com, ipeds.ed.gov,
+ *   commondataset.org
  *
- * Strategy for the hackathon:
- *   - One Niche profile per school on the student's likely radar (~15 schools).
- *     These pages are dense with exactly what Match-Maker needs: admit rate,
- *     SAT/ACT ranges, acceptance by major, demographic breakdown.
- *   - A handful of broader Niche index pages ("Best Colleges in California",
- *     "Best Value Colleges") so Match-Maker can surface hidden gems it
- *     wouldn't find just from the 15 specific profiles.
- *   - College Scorecard is an API more than a web surface — their institution
- *     pages are noisy HTML wrappers around the same data. Skipping for now;
- *     we can wire the Scorecard JSON API directly later if needed.
+ * Source strategy (learned the hard way during seeding):
  *
- * Adding a school: copy an existing `niche.com/colleges/<slug>/` row and
- * change the slug. Niche uses kebab-case; find the slug by visiting the
- * profile in a browser.
+ *   - **Wikipedia** is the workhorse. Its school articles are dense, server-
+ *     rendered HTML; HD chunks them cleanly and semantic search returns
+ *     high-signal results (admit rates, student body, notable programs, aid
+ *     policies, rankings). This is now our primary source.
+ *   - **Niche** profile pages render most of their content with JavaScript.
+ *     The crawler mostly indexes cookie banners + sponsored-link boilerplate.
+ *     We keep a handful of Niche profiles as secondary signal — occasionally
+ *     they expose a "student review" snippet that does pass through.
+ *   - **College Scorecard** is more API than web. Skipping for now; we can
+ *     wire the Scorecard JSON endpoint directly if we want authoritative
+ *     admit/outcome data.
+ *
+ * Naming convention: `match-maker/<school-slug>` (e.g. `match-maker/harvard`).
+ * If you add the same school from multiple sources, suffix with the source:
+ *   `match-maker/harvard-wiki`, `match-maker/harvard-niche`.
  */
 
 import type { SeedEntry } from "./types.mjs";
 
 export const MATCH_MAKER_SEEDS: readonly SeedEntry[] = [
-  // ── Big-name privates ──
-  { url: "https://www.niche.com/colleges/harvard-university/", maxPages: 1, name: "match-maker/harvard" },
-  { url: "https://www.niche.com/colleges/yale-university/", maxPages: 1, name: "match-maker/yale" },
-  { url: "https://www.niche.com/colleges/princeton-university/", maxPages: 1, name: "match-maker/princeton" },
-  { url: "https://www.niche.com/colleges/stanford-university/", maxPages: 1, name: "match-maker/stanford" },
-  { url: "https://www.niche.com/colleges/massachusetts-institute-of-technology/", maxPages: 1, name: "match-maker/mit" },
-  { url: "https://www.niche.com/colleges/columbia-university/", maxPages: 1, name: "match-maker/columbia" },
-  { url: "https://www.niche.com/colleges/university-of-pennsylvania/", maxPages: 1, name: "match-maker/penn" },
+  // ── Wikipedia (primary source) ──────────────────────────────────────
+  // Big-name privates
+  { url: "https://en.wikipedia.org/wiki/Harvard_University",        maxPages: 3, name: "match-maker/harvard-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Yale_University",           maxPages: 3, name: "match-maker/yale-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Princeton_University",      maxPages: 3, name: "match-maker/princeton-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Stanford_University",       maxPages: 3, name: "match-maker/stanford-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Massachusetts_Institute_of_Technology",
+                                                                    maxPages: 3, name: "match-maker/mit-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Columbia_University",       maxPages: 3, name: "match-maker/columbia-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_Pennsylvania",maxPages: 3, name: "match-maker/penn-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Brown_University",          maxPages: 3, name: "match-maker/brown-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Dartmouth_College",         maxPages: 3, name: "match-maker/dartmouth-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Cornell_University",        maxPages: 3, name: "match-maker/cornell-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Duke_University",           maxPages: 3, name: "match-maker/duke-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Northwestern_University",   maxPages: 3, name: "match-maker/northwestern-wiki" },
 
-  // ── Top publics ──
-  { url: "https://www.niche.com/colleges/university-of-california-los-angeles/", maxPages: 1, name: "match-maker/ucla" },
-  { url: "https://www.niche.com/colleges/university-of-california-berkeley/", maxPages: 1, name: "match-maker/uc-berkeley" },
-  { url: "https://www.niche.com/colleges/university-of-michigan-ann-arbor/", maxPages: 1, name: "match-maker/michigan" },
-  { url: "https://www.niche.com/colleges/university-of-virginia/", maxPages: 1, name: "match-maker/uva" },
-  { url: "https://www.niche.com/colleges/university-of-north-carolina-at-chapel-hill/", maxPages: 1, name: "match-maker/unc" },
-  { url: "https://www.niche.com/colleges/georgia-institute-of-technology/", maxPages: 1, name: "match-maker/georgia-tech" },
-  { url: "https://www.niche.com/colleges/university-of-texas-austin/", maxPages: 1, name: "match-maker/ut-austin" },
+  // Top publics
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Los_Angeles",
+                                                                    maxPages: 3, name: "match-maker/ucla-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Berkeley",
+                                                                    maxPages: 3, name: "match-maker/berkeley-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_Michigan",    maxPages: 3, name: "match-maker/michigan-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_Virginia",    maxPages: 3, name: "match-maker/uva-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_North_Carolina_at_Chapel_Hill",
+                                                                    maxPages: 3, name: "match-maker/unc-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Georgia_Institute_of_Technology",
+                                                                    maxPages: 3, name: "match-maker/gt-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_Texas_at_Austin",
+                                                                    maxPages: 3, name: "match-maker/ut-austin-wiki" },
 
-  // ── Mid-tier targets / safeties (helps match-maker build tiered lists) ──
-  { url: "https://www.niche.com/colleges/purdue-university-main-campus/", maxPages: 1, name: "match-maker/purdue" },
-  { url: "https://www.niche.com/colleges/ohio-state-university/", maxPages: 1, name: "match-maker/ohio-state" },
-  { url: "https://www.niche.com/colleges/university-of-wisconsin/", maxPages: 1, name: "match-maker/wisconsin" },
-  { url: "https://www.niche.com/colleges/florida-state-university/", maxPages: 1, name: "match-maker/fsu" },
-  { url: "https://www.niche.com/colleges/arizona-state-university/", maxPages: 1, name: "match-maker/asu" },
+  // Mid-tier targets / safeties
+  { url: "https://en.wikipedia.org/wiki/Purdue_University",         maxPages: 3, name: "match-maker/purdue-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Ohio_State_University",     maxPages: 3, name: "match-maker/ohio-state-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_Wisconsin%E2%80%93Madison",
+                                                                    maxPages: 3, name: "match-maker/wisconsin-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Florida_State_University",  maxPages: 3, name: "match-maker/fsu-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Arizona_State_University",  maxPages: 3, name: "match-maker/asu-wiki" },
 
-  // ── Hidden-gem / value picks ──
-  // These help Match-Maker go beyond the obvious name-brand schools.
-  { url: "https://www.niche.com/colleges/rice-university/", maxPages: 1, name: "match-maker/rice", note: "strong value, small size" },
-  { url: "https://www.niche.com/colleges/vanderbilt-university/", maxPages: 1, name: "match-maker/vanderbilt" },
-  { url: "https://www.niche.com/colleges/grinnell-college/", maxPages: 1, name: "match-maker/grinnell", note: "LAC, need-blind" },
-  { url: "https://www.niche.com/colleges/pomona-college/", maxPages: 1, name: "match-maker/pomona", note: "top LAC" },
+  // Hidden-gem / value picks
+  { url: "https://en.wikipedia.org/wiki/Rice_University",            maxPages: 3, name: "match-maker/rice-wiki",      note: "strong value, small size" },
+  { url: "https://en.wikipedia.org/wiki/Vanderbilt_University",      maxPages: 3, name: "match-maker/vanderbilt-wiki" },
+  { url: "https://en.wikipedia.org/wiki/Grinnell_College",           maxPages: 3, name: "match-maker/grinnell-wiki",  note: "LAC, need-blind" },
+  { url: "https://en.wikipedia.org/wiki/Pomona_College",             maxPages: 3, name: "match-maker/pomona-wiki",    note: "top LAC" },
+  { url: "https://en.wikipedia.org/wiki/Swarthmore_College",         maxPages: 3, name: "match-maker/swarthmore-wiki", note: "top LAC" },
+  { url: "https://en.wikipedia.org/wiki/Williams_College",           maxPages: 3, name: "match-maker/williams-wiki",   note: "top LAC" },
+  { url: "https://en.wikipedia.org/wiki/Amherst_College",            maxPages: 3, name: "match-maker/amherst-wiki",    note: "top LAC" },
+
+  // ── Niche (secondary, lower signal) ─────────────────────────────────
+  // Kept as supplemental signal. The crawls still sometimes surface student
+  // reviews and rank snippets that Wikipedia doesn't cover. Shallow (maxPages:1)
+  // since most of the page is boilerplate.
+  { url: "https://www.niche.com/colleges/harvard-university/",      maxPages: 1, name: "match-maker/harvard" },
+  { url: "https://www.niche.com/colleges/yale-university/",         maxPages: 1, name: "match-maker/yale" },
+  { url: "https://www.niche.com/colleges/stanford-university/",     maxPages: 1, name: "match-maker/stanford" },
 ];

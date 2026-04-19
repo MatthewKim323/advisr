@@ -10,6 +10,7 @@
  */
 
 import { runDeanStream } from "@agents/runtime";
+import { DEMO_STUDENT_ID } from "@/lib/utils/env";
 import type { UIMessage } from "ai";
 
 // The humandelta SDK + our tools use Node-only APIs (fetch with FormData,
@@ -23,6 +24,8 @@ export const maxDuration = 60;
 interface ChatRequestBody {
   id?: string;
   messages: UIMessage[];
+  /** Optional — defaults to the demo student for unauthed sessions. */
+  studentId?: string;
 }
 
 export async function POST(req: Request) {
@@ -53,7 +56,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const result = await runDeanStream({ messages: body.messages });
+  const result = await runDeanStream({
+    messages: body.messages,
+    studentId: body.studentId ?? DEMO_STUDENT_ID,
+  });
 
   // toUIMessageStreamResponse wires text deltas + tool-call parts + metadata
   // into the single SSE stream `useChat` expects. Don't hand-roll this.

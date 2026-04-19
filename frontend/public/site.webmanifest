@@ -1,0 +1,25 @@
+{
+  "name": "nami — college navigation",
+  "short_name": "nami",
+  "description": "A crew of seven AI specialists guiding first-generation students through college applications.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080E1A",
+  "theme_color": "#080E1A",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

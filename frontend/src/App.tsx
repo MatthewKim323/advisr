@@ -8,6 +8,7 @@ import { motion, useScroll, useMotionValueEvent } from "motion/react";
 import { useState } from "react";
 import BlurText from "./components/BlurText";
 import { LoadingScreen } from "./components/LoadingScreen";
+import { diveToOffice } from "./lib/routes";
 
 export default function App() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -70,7 +71,12 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-8 shrink-0">
-            <button className="liquid-glass text-white/90 active:scale-95 rounded-full px-8 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono transition-all duration-300">
+            <button
+              type="button"
+              onClick={diveToOffice}
+              aria-label="Begin dive into the submarine — meet the seven agents"
+              className="liquid-glass text-white/90 active:scale-95 rounded-full px-8 py-2.5 text-[10px] uppercase tracking-widest font-bold font-mono transition-all duration-300 hover:text-white hover:scale-[1.04]"
+            >
               Begin Dive
             </button>
           </div>
@@ -143,7 +149,12 @@ export default function App() {
               transition={{ duration: 0.6, delay: 1.1 }}
               className="flex flex-col sm:flex-row items-center gap-4"
             >
-              <button className="liquid-glass rounded-full px-7 py-3 text-[11px] uppercase tracking-widest font-bold font-mono text-white flex items-center gap-2.5 hover:scale-[1.02] active:scale-95 transition-all duration-300">
+              <button
+                type="button"
+                onClick={diveToOffice}
+                aria-label="Sail your submarine — enter the Nami office"
+                className="liquid-glass rounded-full px-7 py-3 text-[11px] uppercase tracking-widest font-bold font-mono text-white flex items-center gap-2.5 hover:scale-[1.02] active:scale-95 transition-all duration-300"
+              >
                 Sail Your Submarine
                 <span className="text-lg">↗</span>
               </button>
@@ -420,7 +431,12 @@ export default function App() {
            />
         </div>
         
-        <button className="liquid-glass-strong rounded-full px-12 py-5 text-sm font-bold uppercase tracking-widest text-white hover:scale-[1.03] transition-transform active:scale-95">
+        <button
+          type="button"
+          onClick={diveToOffice}
+          aria-label="Your crew is ready — begin the dive"
+          className="liquid-glass-strong rounded-full px-12 py-5 text-sm font-bold uppercase tracking-widest text-white hover:scale-[1.03] transition-transform active:scale-95"
+        >
            Your Crew Is Ready
         </button>
       </section>

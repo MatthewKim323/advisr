@@ -1,22 +1,21 @@
 /**
- * In-memory event bus.
+ * Event bus — dual path.
  *
- * Every agent tool-call emits one of these. Consumers:
- *   1. Chat UI — renders "DEAN → ARCHIVIST // SEARCHING RECORDS…" lines
- *      inline with the conversation.
- *   2. Pixel office (future) — flips agent sprites between `working` / `idle`
- *      so the submarine actually reacts to the conversation.
+ *   1. In-memory Set<callback> for per-process SSE fanout (fast, local).
+ *   2. Optional Supabase Realtime via `events` table insert (durable,
+ *      cross-process, survives hot reload).
  *
- * Why in-memory (not Supabase Realtime yet):
- *   For the hackathon we run one Next.js process; a Set<callback> fanout is
- *   all we need. When we go multi-node we swap the emit() impl for Redis or
- *   Supabase without touching any call-sites. Same contract.
+ * `emit()` is fire-and-forget. The DB write happens best-effort in the
+ * background and never blocks the caller. If Supabase isn't configured,
+ * it's an in-memory-only bus.
  *
- * Survives HMR: the Set lives on `globalThis` so route handlers + SSE
- * subscribers re-bind to the same instance across dev reloads.
+ * Consumer UI stays on SSE (`/api/events/stream`) in dev for immediacy.
+ * Production can swap to Realtime by reading from the `events` table.
  */
 
 import type { AgentEvent } from "./types";
+import { createClient as createSupabaseServer } from "@/lib/supabase/server";
+import { hasSupabase, supabaseServiceRoleKey } from "@/lib/utils/env";
 
 type Subscriber = (evt: AgentEvent) => void;
 
@@ -36,21 +35,49 @@ function getState(): BusState {
   return s;
 }
 
-/** Fire-and-forget. Swallows subscriber errors so one bad listener can't
- *  take the turn down. */
-export function emit(evt: AgentEvent): void {
+async function writeDb(evt: AgentEvent, studentId?: string) {
+  if (!hasSupabase()) return;
+  try {
+    // Prefer service-role so writes succeed from unauthed contexts (API
+    // routes called during demo-bypass, cron jobs, seed scripts, etc.).
+    const serviceKey = supabaseServiceRoleKey();
+    let supabase;
+    if (serviceKey) {
+      const { createClient } = await import("@supabase/supabase-js");
+      supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceKey,
+        { auth: { persistSession: false, autoRefreshToken: false } },
+      );
+    } else {
+      supabase = await createSupabaseServer();
+    }
+    // One event row per emit. Cheap; <1KB typical.
+    await supabase.from("events").insert({
+      student_id: studentId ?? null,
+      kind: evt.type,
+      payload: evt as unknown as Record<string, unknown>,
+    });
+  } catch (err) {
+    // Do not take the turn down on a DB write blip.
+    console.error("[event-bus] DB write failed:", err);
+  }
+}
+
+/** Fire-and-forget. */
+export function emit(evt: AgentEvent, studentId?: string): void {
   const { subscribers } = getState();
   for (const sub of subscribers) {
     try {
       sub(evt);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("[event-bus] subscriber threw:", err);
     }
   }
+  // Background DB write; do not await.
+  void writeDb(evt, studentId);
 }
 
-/** Subscribe. Returns an unsubscribe thunk — call it on connection close. */
 export function subscribe(fn: Subscriber): () => void {
   const { subscribers } = getState();
   subscribers.add(fn);
@@ -59,8 +86,6 @@ export function subscribe(fn: Subscriber): () => void {
   };
 }
 
-/** Convenience: one event subscription drained into an async iterator. Used
- *  by the SSE endpoint — `for await (const evt of toAsyncIterable()) …`. */
 export function toAsyncIterable(
   signal?: AbortSignal,
 ): AsyncIterable<AgentEvent> {
@@ -96,7 +121,11 @@ export function toAsyncIterable(
     [Symbol.asyncIterator]() {
       return {
         next(): Promise<IteratorResult<AgentEvent>> {
-          if (closed) return Promise.resolve({ value: undefined as unknown as AgentEvent, done: true });
+          if (closed)
+            return Promise.resolve({
+              value: undefined as unknown as AgentEvent,
+              done: true,
+            });
           if (queue.length > 0) {
             return Promise.resolve({ value: queue.shift()!, done: false });
           }
@@ -106,7 +135,10 @@ export function toAsyncIterable(
         },
         return(): Promise<IteratorResult<AgentEvent>> {
           close();
-          return Promise.resolve({ value: undefined as unknown as AgentEvent, done: true });
+          return Promise.resolve({
+            value: undefined as unknown as AgentEvent,
+            done: true,
+          });
         },
       };
     },

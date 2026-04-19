@@ -16,6 +16,7 @@
  */
 
 import type { CharacterId } from "@/components/office/state-machine";
+import type { LibraryCategory } from "@/lib/library";
 
 export interface Specialist {
   id: Exclude<CharacterId, "dean">;
@@ -44,6 +45,10 @@ export interface Specialist {
    *  outside this list is dropped before returning to Dean. Empty list means
    *  "accept any source" — only useful for the student-library case. */
   domainAllowlist?: string[];
+  /** For `mode: "library"`, restrict local-corpus hits to these categories.
+   *  Ignored by HD (HD doesn't know our taxonomy). Match-Maker wants schools;
+   *  Bursar wants aid + school context; Scout wants scholarships only. */
+  libraryCategories?: LibraryCategory[];
   /** Human-readable hint shown in the UI + used in the "seed these URLs"
    *  docs. Nothing in the runtime actually reads this — it's a reminder of
    *  what the specialist EXPECTS to find in the library. */
@@ -91,15 +96,22 @@ export const SPECIALISTS: Record<Specialist["id"], Specialist> = {
     voiceHint:
       "Analytical, data-first. Names schools with their admit rate in parens.",
     mode: "library",
+    libraryCategories: ["school"],
     domainAllowlist: [
       "collegescorecard.ed.gov",
       "niche.com",
       "ipeds.ed.gov",
       "commondataset.org",
+      // Wikipedia indexes cleanly (server-rendered HTML, dense prose).
+      // Niche pages are JS-heavy and often only cough up boilerplate when
+      // crawled — Wikipedia articles are our primary source for admit rates,
+      // demographics, selectivity, and general school reputation.
+      "wikipedia.org",
     ],
     seedHint:
-      "Index College Scorecard institution pages, Niche college profiles, " +
-      "and CDS PDFs for the schools on the student's radar.",
+      "Index Wikipedia articles for each target school (dense, reliable " +
+      "coverage), plus Niche profiles where they crawl cleanly. College " +
+      "Scorecard institution pages for authoritative admit/outcome data.",
   },
   bursar: {
     id: "bursar",
@@ -119,10 +131,15 @@ export const SPECIALISTS: Record<Specialist["id"], Specialist> = {
     voiceHint:
       "Direct about money. Numbers upfront. No euphemisms for debt.",
     mode: "library",
+    // Bursar sees both aid records AND school records — school facts
+    // often contain financial-aid policy prose (need-blind status,
+    // average grant amounts) that's useful context for cost questions.
+    libraryCategories: ["aid", "school"],
     domainAllowlist: [
       "studentaid.gov",
       "collegescorecard.ed.gov",
       "commondataset.org",
+      "wikipedia.org",
       // School financial aid subdomains — accept any .edu path for now.
       ".edu",
     ],
@@ -148,11 +165,30 @@ export const SPECIALISTS: Record<Specialist["id"], Specialist> = {
     voiceHint:
       "Treasure-hunter energy. Lists awards by $ value, then deadline.",
     mode: "library",
+    libraryCategories: ["scholarship"],
     domainAllowlist: [
       "scholarships.com",
       "goingmerry.com",
       "fastweb.com",
       "careeronestop.org",
+      // Scholarship sponsors themselves — we curate records that link
+      // back to the sponsor's own page (thegatesscholarship.org,
+      // questbridge.org, jkcf.org). Widen the allowlist to match.
+      "thegatesscholarship.org",
+      "coca-colascholarsfoundation.org",
+      "jkcf.org",
+      "questbridge.org",
+      "ronbrown.org",
+      "goldwaterscholarship.gov",
+      "swe.org",
+      "davidsongifted.org",
+      "possefoundation.org",
+      "dellscholars.org",
+      "horatioalger.org",
+      "niche.com",
+      "hsf.net",
+      "uncf.org",
+      "apiascholars.org",
     ],
     seedHint:
       "Index scholarship directory listing pages (not single-award pages). " +

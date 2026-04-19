@@ -56,11 +56,15 @@ export async function runDeanStream(input: RunDeanStreamInput) {
     model: anthropic("claude-sonnet-4-5"),
     system: DEAN_SYSTEM_PROMPT,
     messages: modelMessages,
-    tools: buildDeanTools(),
+    tools: buildDeanTools({ studentId: input.studentId }),
     stopWhen: stepCountIs(MAX_STEPS),
     onStepFinish: ({ text }) => {
-      // If the step produced user-visible text from Dean, note it. Useful
-      // for the office canvas to show Dean "speaking" when his bubble pops.
+      // Chat turns are rendered by the client via the UI message stream.
+      // We DO NOT emit `dean_interjection` here — that's reserved for
+      // genuinely unprompted Dean beats (F2 callback, deadline alerts).
+      // We still log `response_to_user` so the event log / audit trail
+      // shows that Dean produced text, but the interjection bubble on the
+      // canvas stays quiet.
       if (text && text.trim().length > 0) {
         emit({ type: "response_to_user", agent: "dean", text });
       }

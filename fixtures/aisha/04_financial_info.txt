@@ -1,0 +1,20 @@
+FINANCIAL INTAKE — Aisha M. Thompson
+
+Adjusted Gross Income (AGI):    $31,500
+Household size:                 3
+Number of siblings:             1
+Parent education max:           "hs"
+First-gen:                      true
+Pell-eligible:                  true
+EFC/SAI:                        0
+Home state residency:           GA
+Single parent household:        true
+
+Max unsubsidized loan per year:   5500
+Max total debt target:            22000
+Willing to take Parent PLUS:      no
+
+Considering scholarships:
+  - Gates_Scholarship
+  - Coca-Cola_Scholars
+  - Ron_Brown_Scholar_Program

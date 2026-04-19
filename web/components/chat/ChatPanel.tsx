@@ -23,12 +23,29 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { SPECIALISTS } from "@agents/specialists";
+import { renderCited } from "@/lib/chat/render-citations";
 
 /** Specialist IDs Dean can delegate to. Keep in sync with buildDeanTools() in
  *  lib/agents/tools.ts — tool part types will be `tool-<id>` for each. */
 const DELEGATE_IDS = ["archivist", "match-maker", "bursar", "scout", "draft", "pacer"] as const;
 type DelegateId = typeof DELEGATE_IDS[number];
 const DELEGATE_SET = new Set<string>(DELEGATE_IDS);
+
+/** DefaultChatTransport puts the raw response body in Error.message — often JSON. */
+function formatChatTransportError(message: string): string {
+  const trimmed = message.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { error?: unknown };
+      if (typeof parsed.error === "string" && parsed.error.length > 0) {
+        return parsed.error;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return message;
+}
 
 /** Is a message part one of our specialist tool invocations? */
 function isSpecialistToolPart(
@@ -99,7 +116,7 @@ export default function ChatPanel() {
             className="hud-text mt-3"
             style={{ color: "var(--coral)", fontSize: 14, letterSpacing: "0.04em" }}
           >
-            — comms error · {chat.error.message}
+            — comms error · {formatChatTransportError(chat.error.message)}
           </div>
         )}
       </div>
@@ -227,6 +244,10 @@ function MessageBlock({ message }: { message: UIMessage }) {
     return <UserLine text={text} />;
   }
 
+  // Harvest chunk metadata from any prior `archivist` tool outputs so the
+  // Citation hovers can show the source filename, not just `chunk abc1…`.
+  const chunkMeta = collectArchivistMeta(message);
+
   // Assistant — interleave text + tool parts in the order they arrived.
   return (
     <div className="mb-5">
@@ -250,7 +271,7 @@ function MessageBlock({ message }: { message: UIMessage }) {
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {part.text}
+                {renderCited(part.text, { meta: chunkMeta })}
               </p>
             );
           }
@@ -270,6 +291,58 @@ function MessageBlock({ message }: { message: UIMessage }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Walk a message's parts; if we find an Archivist tool call with output that
+ * includes `studentHits[]`, return a chunkId → {sourceFilename, offsets}
+ * map so the Citation component can render a rich hover tooltip.
+ *
+ * Tolerant of shape changes — if the shape doesn't match, returns an empty
+ * map and the citations fall back to "chunk abc1…" preview.
+ */
+function collectArchivistMeta(
+  message: UIMessage,
+): Record<string, { sourceFilename?: string; offsetStart?: number; offsetEnd?: number }> {
+  const meta: Record<
+    string,
+    { sourceFilename?: string; offsetStart?: number; offsetEnd?: number }
+  > = {};
+
+  for (const part of message.parts) {
+    if (!isArchivistToolPart(part)) continue;
+    const out = (part as { output?: unknown }).output;
+    if (!out || typeof out !== "object") continue;
+    const hits = (out as { studentHits?: unknown }).studentHits;
+    if (!Array.isArray(hits)) continue;
+    for (const h of hits) {
+      if (!h || typeof h !== "object") continue;
+      const id = (h as { chunkId?: unknown }).chunkId;
+      if (typeof id !== "string" || id.length === 0) continue;
+      meta[id] = {
+        sourceFilename:
+          typeof (h as { sourceFilename?: unknown }).sourceFilename ===
+          "string"
+            ? ((h as { sourceFilename: string }).sourceFilename)
+            : undefined,
+        offsetStart:
+          typeof (h as { offsetStart?: unknown }).offsetStart === "number"
+            ? ((h as { offsetStart: number }).offsetStart)
+            : undefined,
+        offsetEnd:
+          typeof (h as { offsetEnd?: unknown }).offsetEnd === "number"
+            ? ((h as { offsetEnd: number }).offsetEnd)
+            : undefined,
+      };
+    }
+  }
+  return meta;
+}
+
+function isArchivistToolPart(part: unknown): boolean {
+  if (!part || typeof part !== "object") return false;
+  const t = (part as { type?: unknown }).type;
+  return typeof t === "string" && t === "tool-archivist";
 }
 
 function UserLine({ text }: { text: string }) {

@@ -51,7 +51,11 @@ async function main() {
   const onlyFailed = argv.includes("--failed");
   const filterPrefix = argv.find((a) => !a.startsWith("--"));
 
-  const jobs = await hd.indexes.list({ limit: 500 });
+  const jobsRaw = await hd.indexes.list({ limit: 500 });
+  // HD sometimes returns jobs without a name (e.g. if a crawl was created
+  // outside our seed pipeline). Coerce to string so downstream ops don't
+  // crash on `null.includes(...)`.
+  const jobs = jobsRaw.map((j) => ({ ...j, name: j.name ?? "(unnamed)" }));
   const visible = jobs.filter((j) => {
     if (onlyFailed && !(j.status === "failed" || j.status === "cancelled")) {
       return false;

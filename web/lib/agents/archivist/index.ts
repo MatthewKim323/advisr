@@ -1,28 +1,109 @@
 /**
- * Archivist — The Memory Agent.
+ * Archivist — orchestrator for ingest workers.
  *
- * Ingests uploaded artifacts. Delegates parsing to leaf workers. Owns the
- * ProposalQueue for human-in-the-loop claim approval.
+ * Routes a source_file to its worker by `kind`, runs extraction, dedupes
+ * + proposes claims, chunks the text, emits lifecycle events.
  *
- * ARCHITECTURAL RULE: Archivist has no direct write tools — must delegate
- * to parser workers. Same pattern as Memopal. This forces genuine agent trees.
- *
- * Models:
- *   - Archivist itself: Claude Sonnet 4.5 (planning)
- *   - Workers: Claude Haiku (10x cheaper, plenty smart for structured parsing)
+ * Pure logic — does NOT require Supabase to be configured. Callers pass in
+ * a `propose` function; by default we use lib/graph/claims.propose.
  */
 
-export interface ArchivistInput {
+import { transcriptWorker } from "./workers/transcript";
+import { essayWorker } from "./workers/essay";
+import { financialWorker } from "./workers/financial";
+import { activityWorker } from "./workers/activity";
+import type { ArchivistWorker, ArchivistWorkerResult } from "./types";
+import { propose, type ProposeArgs } from "@/lib/graph/claims";
+import { emit } from "@/lib/events/bus";
+
+export const WORKERS: Record<string, ArchivistWorker> = {
+  transcript: transcriptWorker,
+  essay: essayWorker,
+  financial: financialWorker,
+  activity: activityWorker,
+};
+
+export interface RunArchivistInput {
   studentId: string;
-  sourceFileIds: string[];
+  sourceFileId: string | null;
+  kind: string;
+  filename: string;
+  text: string;
 }
 
-export async function runArchivist(_input: ArchivistInput) {
-  // TODO:
-  //   emit("ingestion_started");
-  //   for each sourceFile:
-  //     pick worker by file.kind
-  //     delegate via tool call (emits agent_delegating + tool_call_*)
-  //   aggregate claim counts, emit("ingestion_finished").
-  throw new Error("not implemented");
+export interface RunArchivistOutput {
+  workerName: string;
+  claimsProposed: number;
+  claimsCreated: number;
+  durationMs: number;
+  result: ArchivistWorkerResult;
+}
+
+export async function runArchivist(
+  input: RunArchivistInput,
+  opts?: { proposeImpl?: typeof propose },
+): Promise<RunArchivistOutput> {
+  const started = Date.now();
+  const worker = WORKERS[input.kind];
+  if (!worker) {
+    throw new Error(`No Archivist worker for kind="${input.kind}"`);
+  }
+
+  emit({ type: "agent_spawned", agent: "archivist" }, input.studentId);
+  emit(
+    {
+      type: "tool_call_started",
+      agent: "archivist",
+      tool: `worker:${input.kind}`,
+      input: { sourceFileId: input.sourceFileId, filename: input.filename },
+    },
+    input.studentId,
+  );
+
+  const result = await worker({
+    studentId: input.studentId,
+    sourceFileId: input.sourceFileId,
+    filename: input.filename,
+    text: input.text,
+  });
+
+  const proposeImpl = opts?.proposeImpl ?? propose;
+  let created = 0;
+  for (const c of result.claims) {
+    const args: ProposeArgs = {
+      studentId: input.studentId,
+      predicate: c.predicate,
+      object: c.object,
+      confidence: c.confidence,
+      subjectEntity: c.subjectEntity,
+      sensitivity: c.sensitivity,
+      sourceArtifactId: c.sourceArtifactId ?? null,
+      sourceChunkId: c.sourceChunkId ?? null,
+      sourceFileId: input.sourceFileId,
+      extractedBy: c.extractedBy ?? `archivist.${result.workerName}`,
+      reasoning: c.reasoning ?? null,
+    };
+    const r = await proposeImpl(args);
+    if (r?.created) created++;
+  }
+
+  const durationMs = Date.now() - started;
+  emit(
+    {
+      type: "tool_call_finished",
+      agent: "archivist",
+      tool: `worker:${input.kind}`,
+      output: { claimsProposed: result.claims.length, claimsCreated: created },
+    },
+    input.studentId,
+  );
+  emit({ type: "agent_idle", agent: "archivist" }, input.studentId);
+
+  return {
+    workerName: result.workerName,
+    claimsProposed: result.claims.length,
+    claimsCreated: created,
+    durationMs,
+    result,
+  };
 }

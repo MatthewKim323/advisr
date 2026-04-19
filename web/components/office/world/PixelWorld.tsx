@@ -21,6 +21,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import type { CharacterId } from "@/components/office/state-machine";
+import {
+  AGENT_TAGLINE,
+  IDLE_TASK,
+} from "@/lib/agent-state/task-labels";
+import {
+  useAgentStates,
+  useAgentStatesRef,
+  type AgentStates,
+  type LiveStatus,
+} from "@/lib/agent-state/store";
 import {
   CHARS,
   OFFICE,
@@ -43,6 +54,27 @@ import {
   type StationSpec,
 } from "./map";
 
+/** Per-frame override derived from the live event stream. Drives everything
+ *  from "should the monitor be lit" to "should we render a thought bubble". */
+type LiveOverride = {
+  status: LiveStatus;
+  task?: string;
+  message?: string;
+  /** True when the agent is actively engaged with a tool. Forces the sprite
+   *  to render at the chair regardless of the static `activity` field. */
+  isLive: boolean;
+};
+
+function liveFor(id: CharacterId, states: AgentStates): LiveOverride {
+  const s = states[id];
+  return {
+    status: s?.status ?? "idle",
+    task: s?.task,
+    message: s?.message,
+    isLive: s?.status === "working" || s?.status === "thinking",
+  };
+}
+
 type Sheet = { image: HTMLImageElement; ready: boolean };
 
 /* Pixel dimensions (unscaled, then we scale the context). */
@@ -60,6 +92,12 @@ const PAD = 12;
 export default function PixelWorld() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [showAtlas, setShowAtlas] = useState(false);
+
+  // Live agent state: drives thought bubbles, LED colors, screen lighting.
+  // We hold TWO subscriptions — the ref for the canvas loop (read every
+  // frame, avoids extra renders) and the hook for the DOM hover overlays.
+  const liveRef = useAgentStatesRef();
+  const liveStates = useAgentStates();
 
   const sheets = useRef<{ office: Sheet | null; chars: Sheet | null }>({
     office: null,
@@ -112,6 +150,7 @@ export default function PixelWorld() {
 
   const render = (ctx: CanvasRenderingContext2D, now: number) => {
     const { office, chars } = sheets.current;
+    const states = liveRef.current ?? ({} as AgentStates);
 
     ctx.imageSmoothingEnabled = false;
 
@@ -140,18 +179,19 @@ export default function PixelWorld() {
     // Procedural workstation = desk + chair + (monitor|laptop). No sprite
     // tiles involved for these, which avoids the tile-index guesswork that
     // made the desks render as bookshelves.
-    drawStationWorkstations(ctx);
-    drawLaptopGlow(ctx);
+    drawStationWorkstations(ctx, states);
+    drawLaptopGlow(ctx, states, now);
 
     // Sprite-based decor (plants, bookshelves, boxes) still uses Donarg
     if (office?.ready) drawFurniture(ctx, office.image);
 
-    if (chars?.ready) drawCharacters(ctx, chars.image, now);
+    if (chars?.ready) drawCharacters(ctx, chars.image, now, states);
 
     drawHatchCutout(ctx);
     drawPortholeCutout(ctx);
     drawStationNameplates(ctx);
-    drawActivityIndicators(ctx, now);
+    drawActivityIndicators(ctx, now, states);
+    drawThoughtBubbles(ctx, now, states);
 
     ctx.restore();
 
@@ -184,7 +224,7 @@ export default function PixelWorld() {
         className="block h-full w-full"
         style={{ imageRendering: "pixelated" }}
       />
-      <StationHotspots />
+      <StationHotspots states={liveStates} />
       {showAtlas && <TileAtlas />}
       <DevHint />
     </div>
@@ -230,84 +270,240 @@ function stationRectPct(s: StationSpec) {
   };
 }
 
-function StationHotspots() {
+/** Hover overlays for every station. Each shows a themed thought-bubble
+ *  tooltip with the agent's current task. Stations with a `STATION_LINKS`
+ *  entry also act as a <Link>; the others are divs with the same visuals. */
+function StationHotspots({ states }: { states: AgentStates }) {
   return (
     <>
       {STATIONS.map((s) => {
         const link = STATION_LINKS[s.id];
-        if (!link) return null;
         const r = stationRectPct(s);
+        const live = states[s.id as CharacterId];
+        const status = live?.status ?? "idle";
+        const task =
+          status === "error"
+            ? live?.message ?? "blocked"
+            : live?.task ?? IDLE_TASK[s.id as CharacterId];
+        const tagline = AGENT_TAGLINE[s.id as CharacterId];
+        const style: React.CSSProperties = {
+          left: `${r.left}%`,
+          top: `${r.top}%`,
+          width: `${r.width}%`,
+          height: `${r.height}%`,
+        };
+        // Accent color per agent = blanket. Used for the bubble stroke,
+        // which gives each tooltip a touch of personal identity.
+        const accent = s.blanket;
+
+        const body = (
+          <>
+            <HoverReticle />
+            <ThoughtTooltip
+              name={s.label}
+              tagline={tagline}
+              status={status}
+              task={task}
+              accent={accent}
+              actionLabel={link?.label}
+            />
+          </>
+        );
+
+        if (link) {
+          return (
+            <Link
+              key={s.id}
+              href={link.href}
+              aria-label={`${s.label} — ${link.label}`}
+              className="group absolute z-10"
+              style={style}
+            >
+              {body}
+            </Link>
+          );
+        }
         return (
-          <Link
+          <div
             key={s.id}
-            href={link.href}
-            aria-label={`${s.label} — ${link.label}`}
             className="group absolute z-10"
-            style={{
-              left: `${r.left}%`,
-              top: `${r.top}%`,
-              width: `${r.width}%`,
-              height: `${r.height}%`,
-            }}
+            aria-label={`${s.label} — ${tagline}`}
+            style={style}
           >
-            {/* Bracket reticle — only visible on hover */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
-              style={{
-                boxShadow:
-                  "0 0 0 1px rgba(124,255,147,0.6), 0 0 22px rgba(124,255,147,0.35), inset 0 0 0 1px rgba(10,26,38,0.8)",
-              }}
-            >
-              {/* Corner brackets */}
-              <span
-                className="absolute left-0 top-0 h-2 w-2"
-                style={{
-                  borderTop: "1px solid var(--sonar)",
-                  borderLeft: "1px solid var(--sonar)",
-                }}
-              />
-              <span
-                className="absolute right-0 top-0 h-2 w-2"
-                style={{
-                  borderTop: "1px solid var(--sonar)",
-                  borderRight: "1px solid var(--sonar)",
-                }}
-              />
-              <span
-                className="absolute bottom-0 left-0 h-2 w-2"
-                style={{
-                  borderBottom: "1px solid var(--sonar)",
-                  borderLeft: "1px solid var(--sonar)",
-                }}
-              />
-              <span
-                className="absolute bottom-0 right-0 h-2 w-2"
-                style={{
-                  borderBottom: "1px solid var(--sonar)",
-                  borderRight: "1px solid var(--sonar)",
-                }}
-              />
-            </span>
-            {/* Label pill — floats above on hover */}
-            <span
-              aria-hidden
-              className="pixel-text pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+6px)] whitespace-nowrap px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
-              style={{
-                fontSize: 9,
-                color: "var(--abyss-deep)",
-                background:
-                  "linear-gradient(180deg,#e6a559 0%,#9c6f3b 100%)",
-                letterSpacing: "0.2em",
-                boxShadow: "0 0 0 1px var(--abyss-deep), 0 4px 18px rgba(0,0,0,0.5)",
-              }}
-            >
-              {link.label}
-            </span>
-          </Link>
+            {body}
+          </div>
         );
       })}
     </>
+  );
+}
+
+/** Corner bracket + glow that appears on hover — same as before, extracted. */
+function HoverReticle() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+      style={{
+        boxShadow:
+          "0 0 0 1px rgba(124,255,147,0.55), 0 0 22px rgba(124,255,147,0.3), inset 0 0 0 1px rgba(10,26,38,0.8)",
+      }}
+    >
+      <span
+        className="absolute left-0 top-0 h-2 w-2"
+        style={{ borderTop: "1px solid var(--sonar)", borderLeft: "1px solid var(--sonar)" }}
+      />
+      <span
+        className="absolute right-0 top-0 h-2 w-2"
+        style={{ borderTop: "1px solid var(--sonar)", borderRight: "1px solid var(--sonar)" }}
+      />
+      <span
+        className="absolute bottom-0 left-0 h-2 w-2"
+        style={{ borderBottom: "1px solid var(--sonar)", borderLeft: "1px solid var(--sonar)" }}
+      />
+      <span
+        className="absolute bottom-0 right-0 h-2 w-2"
+        style={{ borderBottom: "1px solid var(--sonar)", borderRight: "1px solid var(--sonar)" }}
+      />
+    </span>
+  );
+}
+
+/** Pixel-themed thought bubble that floats above a station on hover. */
+function ThoughtTooltip({
+  name,
+  tagline,
+  status,
+  task,
+  accent,
+  actionLabel,
+}: {
+  name: string;
+  tagline: string;
+  status: LiveStatus;
+  task?: string;
+  accent: string;
+  actionLabel?: string;
+}) {
+  // Color the status pip by state. Green = working, amber = thinking,
+  // red = blocked, grey = idle.
+  const pipColor =
+    status === "working"
+      ? "#7cff93"
+      : status === "thinking"
+        ? "#e6a559"
+        : status === "error"
+          ? "#ff6a6a"
+          : "#6f8fa3";
+  const statusLabel =
+    status === "working"
+      ? "WORKING"
+      : status === "thinking"
+        ? "THINKING"
+        : status === "error"
+          ? "BLOCKED"
+          : "IDLE";
+
+  return (
+    <span
+      aria-hidden
+      className="pixel-text pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] whitespace-nowrap opacity-0 transition-all duration-150 group-hover:opacity-100 group-hover:-translate-y-[calc(100%+12px)] group-focus-visible:opacity-100"
+      style={{
+        fontSize: 9,
+        letterSpacing: "0.14em",
+        color: "#e8f1ea",
+        padding: "6px 9px 5px",
+        background:
+          "linear-gradient(180deg, rgba(12,34,52,0.96) 0%, rgba(6,20,32,0.96) 100%)",
+        boxShadow: `0 0 0 1px ${accent}, 0 0 0 2px rgba(10,26,38,0.9), 0 8px 18px rgba(0,0,0,0.55)`,
+        minWidth: 140,
+      }}
+    >
+      {/* Top row: name + status pip */}
+      <span className="flex items-center justify-between gap-3" style={{ marginBottom: 2 }}>
+        <span style={{ color: accent }}>{name.toUpperCase()}</span>
+        <span className="flex items-center gap-1">
+          <span
+            style={{
+              display: "inline-block",
+              width: 5,
+              height: 5,
+              background: pipColor,
+              boxShadow:
+                status === "idle" ? undefined : `0 0 6px ${pipColor}`,
+              animation:
+                status === "working" ? "bubble-pip 0.9s steps(2) infinite" : undefined,
+            }}
+          />
+          <span style={{ color: pipColor, fontSize: 8 }}>{statusLabel}</span>
+        </span>
+      </span>
+      {/* Tagline / role line (dim) */}
+      <span className="block" style={{ color: "#6f8fa3", fontSize: 8, letterSpacing: "0.18em" }}>
+        {tagline.toUpperCase()}
+      </span>
+      {/* Current task line */}
+      {task && (
+        <span
+          className="block"
+          style={{
+            marginTop: 3,
+            color: status === "working" ? "#7cff93" : "#cfe3df",
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            maxWidth: 260,
+            whiteSpace: "normal",
+            lineHeight: 1.25,
+          }}
+        >
+          {"> "}
+          {task}
+        </span>
+      )}
+      {/* Action hint — only when the station is clickable */}
+      {actionLabel && (
+        <span
+          className="block"
+          style={{
+            marginTop: 5,
+            paddingTop: 4,
+            borderTop: "1px solid rgba(212,154,74,0.4)",
+            color: "#d49a4a",
+            fontSize: 8,
+            letterSpacing: "0.22em",
+          }}
+        >
+          » {actionLabel}
+        </span>
+      )}
+      {/* Bubble tail — two stacked squares simulating a comic thought bubble */}
+      <span
+        aria-hidden
+        className="absolute"
+        style={{
+          left: "50%",
+          bottom: -6,
+          width: 4,
+          height: 4,
+          marginLeft: -2,
+          background: "rgba(6,20,32,0.96)",
+          boxShadow: `0 0 0 1px ${accent}`,
+        }}
+      />
+      <span
+        aria-hidden
+        className="absolute"
+        style={{
+          left: "50%",
+          bottom: -12,
+          width: 2,
+          height: 2,
+          marginLeft: -1,
+          background: "rgba(6,20,32,0.96)",
+          boxShadow: `0 0 0 1px ${accent}`,
+        }}
+      />
+    </span>
   );
 }
 
@@ -516,11 +712,14 @@ function drawFurniture(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
    primitives. Zero sprite dependency.
    ────────────────────────────────────────────────────────────── */
 
-function drawStationWorkstations(ctx: CanvasRenderingContext2D) {
+function drawStationWorkstations(
+  ctx: CanvasRenderingContext2D,
+  states: AgentStates,
+) {
   for (const s of STATIONS) {
     drawChair(ctx, s);
     drawDesk(ctx, s);
-    drawScreen(ctx, s);
+    drawScreen(ctx, s, liveFor(s.id as CharacterId, states));
   }
 }
 
@@ -610,7 +809,11 @@ function drawDesk(ctx: CanvasRenderingContext2D, s: StationSpec) {
 }
 
 /* Monitor or laptop sitting on the desk, oriented toward the char. */
-function drawScreen(ctx: CanvasRenderingContext2D, s: StationSpec) {
+function drawScreen(
+  ctx: CanvasRenderingContext2D,
+  s: StationSpec,
+  live: LiveOverride,
+) {
   const isLaptop = s.deskItem === OFFICE.laptop;
   const isDual   = s.deskItem === OFFICE.monitorDual;
 
@@ -618,7 +821,24 @@ function drawScreen(ctx: CanvasRenderingContext2D, s: StationSpec) {
   // Sit on the near edge of the desk (toward the character)
   const topY = s.desk.y * TILE + (s.facing === "down" ? 1 : s.desk.h * TILE - 9);
 
-  const isOn = s.activity === "working";
+  // Light up the screen if the agent is statically working OR live-active.
+  const isOn = s.activity === "working" || live.isLive;
+  const isThinking = live.status === "thinking";
+  const isError    = live.status === "error";
+
+  // Per-state screen text color. The brighter amber in "thinking" reads as
+  // the agent waiting on someone, the red stripe reads as an error screen.
+  const glyphColor = isError
+    ? "#ff6a6a"
+    : isThinking
+      ? "#e6a559"
+      : "#7cff93";
+  const scanColor = isError
+    ? "rgba(255,106,106,0.22)"
+    : isThinking
+      ? "rgba(230,165,89,0.22)"
+      : "rgba(124,255,147,0.25)";
+  const bgColor = isError ? "#2a0a14" : isThinking ? "#2a1d0a" : "#0a2a2d";
 
   const drawOne = (cx: number, screenW: number, screenH: number) => {
     const x = cx - screenW / 2;
@@ -632,13 +852,11 @@ function drawScreen(ctx: CanvasRenderingContext2D, s: StationSpec) {
 
     // Screen
     if (isOn) {
-      // Active: dark-teal screen with a bright "cursor line"
-      ctx.fillStyle = "#0a2a2d";
+      ctx.fillStyle = bgColor;
       ctx.fillRect(x + 2, y + 2, screenW - 4, screenH - 4);
-      ctx.fillStyle = "#7cff93";
+      ctx.fillStyle = glyphColor;
       ctx.fillRect(x + 3, y + 3, screenW - 6, 1);
-      // scanlines
-      ctx.fillStyle = "rgba(124,255,147,0.25)";
+      ctx.fillStyle = scanColor;
       for (let sy = y + 5; sy < y + screenH - 3; sy += 2) {
         ctx.fillRect(x + 3, sy, screenW - 6, 1);
       }
@@ -683,16 +901,27 @@ function drawCharacters(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   now: number,
+  states: AgentStates,
 ) {
   const breath = Math.floor(now / 480) % 2 === 0 ? 0 : -1;
+  // Slightly faster, larger bob when an agent is actively working — feels
+  // like they're actually hunched over the keyboard. Same amplitude but
+  // different phase so the office doesn't breathe in unison.
+  const workBob = Math.floor(now / 260) % 2 === 0 ? 0 : -1;
 
   for (const s of STATIONS) {
     if (s.activity === "away") continue;
+    const live = liveFor(s.id as CharacterId, states);
     const c = CHARS[s.charKey];
     const f = charFrame(c, s.facing as Facing, 0);
 
-    if (s.activity === "sleeping") {
-      // Sprite centered on the bunk (no bob)
+    // If the agent is actively doing a tool call, force them onto the chair
+    // regardless of static "sleeping" activity — otherwise Pacer/Scout (who
+    // start in bunk state) would never be shown working.
+    const atChair = s.activity === "working" || live.isLive;
+
+    if (!atChair) {
+      // Sleeping sprite centered on the bunk (no bob)
       const cx = (s.bunk.x + s.bunk.w / 2 - 0.5) * TILE;
       const cy = (s.bunk.y + s.bunk.h / 2 - 0.5) * TILE - 1;
       ctx.drawImage(
@@ -702,11 +931,11 @@ function drawCharacters(
       continue;
     }
 
-    // working — sit at chair, subtle breath bob on Y
+    const bob = live.status === "working" ? workBob : breath;
     ctx.drawImage(
       img, f.col * TILE, f.row * TILE, TILE, TILE,
       s.chair.x * TILE,
-      s.chair.y * TILE - 4 + breath,
+      s.chair.y * TILE - 4 + bob,
       TILE, TILE,
     );
   }
@@ -773,16 +1002,35 @@ function drawBunk(ctx: CanvasRenderingContext2D, s: StationSpec) {
 }
 
 /* Screen glow — bright when working, faint when sleeping. Anchors to the
- * near edge of the desk where the screen is drawn. */
-function drawLaptopGlow(ctx: CanvasRenderingContext2D) {
+ * near edge of the desk where the screen is drawn. When an agent is LIVE
+ * (mid-tool-call), the glow breathes at ~1Hz for a "they're cooking" feel. */
+function drawLaptopGlow(
+  ctx: CanvasRenderingContext2D,
+  states: AgentStates,
+  now: number,
+) {
   for (const s of STATIONS) {
     if (s.activity === "away") continue;
+    const live = liveFor(s.id as CharacterId, states);
     const cx = (s.desk.x + s.desk.w / 2) * TILE;
     const cy = s.desk.y * TILE + (s.facing === "down" ? 4 : s.desk.h * TILE - 5);
 
-    const intensity = s.activity === "working" ? 1 : 0.25;
+    const baseIntensity = s.activity === "working" || live.isLive ? 1 : 0.25;
+    // Breathing modulation when actively working — triangle wave, 1Hz.
+    const pulse = live.status === "working"
+      ? 0.65 + 0.35 * (Math.sin(now / 160) * 0.5 + 0.5)
+      : 1;
+    const intensity = baseIntensity * pulse;
+
+    // Tint by state — green default, amber when thinking, red on block.
+    const tint = live.status === "error"
+      ? [255, 106, 106]
+      : live.status === "thinking"
+        ? [230, 165, 89]
+        : [124, 255, 147];
+
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14);
-    g.addColorStop(0,   `rgba(124,255,147,${0.50 * intensity})`);
+    g.addColorStop(0,   `rgba(${tint[0]},${tint[1]},${tint[2]},${0.50 * intensity})`);
     g.addColorStop(0.5, `rgba(80,200,230,${0.18 * intensity})`);
     g.addColorStop(1,   "rgba(0,0,0,0)");
     ctx.fillStyle = g;
@@ -791,16 +1039,21 @@ function drawLaptopGlow(ctx: CanvasRenderingContext2D) {
 }
 
 /* Activity indicators — "Z" bubble over sleeping bunks, a tiny blinking
- * indicator light above a working laptop. */
+ * indicator light above a working laptop. Live status beats static activity:
+ * a "sleeping" agent that receives a tool call is shown as busy. */
 function drawActivityIndicators(
   ctx: CanvasRenderingContext2D,
   now: number,
+  states: AgentStates,
 ) {
   for (const s of STATIONS) {
-    if (s.activity === "sleeping") {
+    const live = liveFor(s.id as CharacterId, states);
+    const atChair = s.activity === "working" || live.isLive;
+
+    if (!atChair) {
       drawZzz(ctx, s, now);
-    } else if (s.activity === "working") {
-      drawBusyLED(ctx, s, now);
+    } else {
+      drawBusyLED(ctx, s, now, live.status);
     }
   }
 }
@@ -838,14 +1091,113 @@ function drawBusyLED(
   ctx: CanvasRenderingContext2D,
   s: StationSpec,
   now: number,
+  status: LiveStatus,
 ) {
-  // Blink at ~1.2Hz, placed on the top bezel of the monitor
+  // LED placed on the top bezel of the monitor. Color + blink rate keyed
+  // to the live status; idle still blinks softly so the office reads alive.
   const cx = (s.desk.x + s.desk.w / 2) * TILE;
   const cy = s.desk.y * TILE + (s.facing === "down" ? 2 : s.desk.h * TILE - 8);
-  const on = Math.floor(now / 420) % 2 === 0;
 
-  ctx.fillStyle = on ? "#7cff93" : "#204030";
+  const period = status === "working" ? 220 : status === "thinking" ? 380 : status === "error" ? 140 : 700;
+  const on = Math.floor(now / period) % 2 === 0;
+
+  const onColor =
+    status === "working"
+      ? "#7cff93"
+      : status === "thinking"
+        ? "#e6a559"
+        : status === "error"
+          ? "#ff6a6a"
+          : "#5a8a6a";
+  const offColor =
+    status === "error" ? "#40121c" : "#204030";
+
+  ctx.fillStyle = on ? onColor : offColor;
   ctx.fillRect(cx - 1, cy, 2, 1);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Thought bubbles — a tiny pixel cloud that floats above the
+   agent's head when they're mid-tool-call. Three cycling dots
+   inside to signal "processing". Idle / sleeping agents get no
+   bubble (keeps the office quiet when nothing's happening).
+   ────────────────────────────────────────────────────────────── */
+
+function drawThoughtBubbles(
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  states: AgentStates,
+) {
+  for (const s of STATIONS) {
+    const live = liveFor(s.id as CharacterId, states);
+    if (!live.isLive) continue;
+    // Anchor above the character's head. Because all stations face down,
+    // the sprite sits at chair.y-ish and the head is a few px above that.
+    const cx = s.chair.x * TILE + TILE / 2;
+    const cy = s.chair.y * TILE - 8;
+
+    // 1-px float bob, offset by station index so they don't all pulse in sync.
+    const idx = STATIONS.indexOf(s);
+    const bob = Math.sin(now / 320 + idx) * 1;
+    drawThoughtBubble(ctx, cx, cy + bob, now + idx * 150, live.status);
+  }
+}
+
+function drawThoughtBubble(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  now: number,
+  status: LiveStatus,
+) {
+  // Palette by state
+  const fill = status === "error" ? "#2a0a14" : "#0a1a26";
+  const stroke =
+    status === "error"
+      ? "#ff6a6a"
+      : status === "thinking"
+        ? "#e6a559"
+        : "#7cff93";
+  const dotColor = stroke;
+  const dotDim = status === "error" ? "#5a2230" : "#1f3a2a";
+
+  // Main cloud — 9×6 pixels of puffy, with a couple of little bumps
+  // to feel like a comic-strip thought cloud rather than a plain pill.
+  const w = 11;
+  const h = 7;
+  const x = Math.round(cx - w / 2);
+  const y = Math.round(cy - h / 2);
+
+  // Backing + stroke (stroke drawn as 1px offset rects so it stays pixel-crisp)
+  ctx.fillStyle = stroke;
+  // top bumps
+  ctx.fillRect(x + 1, y - 1, 3, 1);
+  ctx.fillRect(x + w - 4, y - 1, 3, 1);
+  ctx.fillRect(x, y, w, h);
+
+  ctx.fillStyle = fill;
+  ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.fillRect(x + 2, y - 0, 1, 1);
+  ctx.fillRect(x + w - 3, y - 0, 1, 1);
+
+  // 3 dots cycling — each on for ~240ms in sequence, so the whole cycle is ~960ms.
+  // (Classic chat "thinking" ellipsis.)
+  const phase = Math.floor(now / 240) % 4; // 0,1,2 = dots lit; 3 = all on briefly
+  const dots: [number, number][] = [
+    [cx - 3, cy + 0],
+    [cx + 0, cy + 0],
+    [cx + 3, cy + 0],
+  ];
+  dots.forEach(([dx, dy], i) => {
+    const lit = phase === 3 || phase === i || (phase === (i + 1) % 4);
+    ctx.fillStyle = lit ? dotColor : dotDim;
+    ctx.fillRect(Math.round(dx), Math.round(dy), 1, 1);
+  });
+
+  // Two tiny tail squares (shrinking) pointing down toward the character
+  ctx.fillStyle = stroke;
+  ctx.fillRect(Math.round(cx) - 1, y + h + 0, 2, 2);
+  ctx.fillRect(Math.round(cx), y + h + 3, 1, 1);
 }
 
 /** Blend a hex color toward black (-1) or white (+1) by `amount`. */

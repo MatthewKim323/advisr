@@ -1,17 +1,37 @@
-# Aisha — TODO
+# Aisha Thompson
 
-One-paragraph profile to write:
+Generalization-test persona. Same extraction pipeline, different shape of
+student. Where Maria tests "does the flagship case sing?", Aisha tests
+"does the pipeline generalize beyond our demo fixture?"
 
-- Arts-focused (film)
+## Profile
+
+- Rural Georgia, single-parent household
 - Pell-eligible
-- Rural Georgia
-- Homeschooled — portfolio-based applicant
+- Portfolio-track arts applicant (visual art + photography)
+- First-gen
+- Interested in SCAD, RISD (reach), UGA (safety)
+- Heritage: Black American
 
-Required artifacts (minimum):
-- [ ] `00_aisha_summary.md`
-- [ ] `01_homeschool_record.txt` (no traditional transcript)
-- [ ] one portfolio brief
-- [ ] `08_expected_claims.md` — 5 confirmed-claim ground truth
+## Artifacts
 
-Budget: 30 minutes. Tests the system on a non-traditional profile — no GPA,
-no class rank, portfolio-weighted apps.
+| File | Kind | Why |
+|---|---|---|
+| `01_transcript.txt` | transcript | Tests TranscriptReader on a different HS format (fewer APs, more dual-enrollment). |
+| `02_common_app_essay.txt` | essay | Themes: mother, photography, community. Tests EssayParser beyond Maria's pattern. |
+| `03_activities_list.txt` | activity | Art-heavy activities: portfolio class, yearbook, church. Tests ActivityExtractor on non-STEM. |
+| `04_financial_info.txt` | financial | Lower AGI, single parent, Pell-eligible — different numeric shape than Maria's. |
+
+## Expected claims (truncated)
+
+- `has_gpa` 3.54 (unweighted)
+- `pell_eligible` true
+- `first_gen` true
+- `household_agi` 31500
+- `essay_theme` mother
+- `essay_theme` photography
+- `participates_in` Yearbook
+- `participates_in` Photography_Club
+- `considering_school` SCAD
+- `considering_school` UGA
+- `home_state_residency` GA

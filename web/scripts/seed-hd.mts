@@ -137,7 +137,11 @@ async function main() {
   if (!args.dry) {
     try {
       const existing = await hd.indexes.list({ limit: 200 });
-      existingNames = new Set(existing.map((j) => j.name));
+      // Filter out unnamed jobs (from crawls that didn't set a name) so
+      // they don't poison the dedupe set as `undefined`/`null`.
+      existingNames = new Set(
+        existing.map((j) => j.name).filter((n): n is string => typeof n === "string"),
+      );
       console.log(
         c.dim(
           `  existing index jobs: ${existing.length} (${existingNames.size} unique names)\n`,
@@ -152,87 +156,106 @@ async function main() {
     }
   }
 
-  const kickedOff: Array<{ name: string; id: string }> = [];
-  let skipped = 0;
-  let failed = 0;
-
+  // Flatten all seeds into a single work queue so batching works across
+  // specialists (HD's concurrency limit is per-key, not per-specialist).
+  const queue: Array<SeedEntry & { specialist: SeedSpecialist }> = [];
   for (const specialist of args.specialists) {
     const seeds = SEED_SETS[specialist];
     const slice = args.limit ? seeds.slice(0, args.limit) : seeds;
-
     console.log(c.bold(`\n━ ${specialist} (${slice.length} URLs)`));
-
-    for (const entry of slice) {
-      if (existingNames.has(entry.name)) {
-        console.log(c.dim(`  ⊘ skip   ${entry.name}  (already indexed)`));
-        skipped++;
+    for (const e of slice) {
+      if (existingNames.has(e.name)) {
+        console.log(c.dim(`  ⊘ skip   ${e.name}  (already indexed)`));
         continue;
       }
       if (args.dry) {
         console.log(
-          `  → would seed ${c.cyan(entry.name)}  ${c.dim(`[${entry.maxPages}p]`)}  ${entry.url}`,
+          `  → would seed ${c.cyan(e.name)}  ${c.dim(`[${e.maxPages}p]`)}  ${e.url}`,
         );
         continue;
       }
+      queue.push({ ...e, specialist });
+    }
+  }
 
+  if (args.dry || queue.length === 0) {
+    console.log(c.bold(`\n▸ nothing to seed (dry-run or all skipped)\n`));
+    return;
+  }
+
+  // HD's public API caps concurrent index jobs at 5 per key. We honor that
+  // by walking the queue in batches of BATCH_SIZE, waiting for each batch
+  // to reach a terminal state before queueing the next. This also gives
+  // the live log a clean "batch 1/12 …" rhythm so the operator knows
+  // roughly how long the seed run will take.
+  const BATCH_SIZE = 5;
+  const batches: Array<typeof queue> = [];
+  for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+    batches.push(queue.slice(i, i + BATCH_SIZE));
+  }
+
+  let kicked = 0;
+  let failed = 0;
+  console.log(c.bold(`\n▸ seeding ${queue.length} URLs in ${batches.length} batch${batches.length === 1 ? "" : "es"} of ≤${BATCH_SIZE}\n`));
+
+  for (let bi = 0; bi < batches.length; bi++) {
+    const batch = batches[bi]!;
+    console.log(c.bold(`── batch ${bi + 1}/${batches.length}`));
+
+    // Kick off all N in parallel
+    const ids: Array<{ name: string; id: string }> = [];
+    for (const e of batch) {
       try {
-        const job = await hd.indexes.create(entry.url, {
-          maxPages: entry.maxPages,
-          name: entry.name,
+        const job = await hd.indexes.create(e.url, {
+          maxPages: e.maxPages,
+          name: e.name,
         });
-        kickedOff.push({ name: entry.name, id: job.id });
+        ids.push({ name: e.name, id: job.id });
+        kicked++;
         console.log(
           c.green(`  ✓ queued`) +
-            `  ${entry.name.padEnd(34)}  ${c.dim(`[${entry.maxPages}p]`)}  ${c.dim(job.id)}`,
+            `  ${e.name.padEnd(34)}  ${c.dim(`[${e.maxPages}p]`)}  ${c.dim(job.id)}`,
         );
       } catch (err) {
         failed++;
         const msg = err instanceof Error ? err.message : String(err);
         console.log(
           c.red(`  ✗ fail   `) +
-            `${entry.name.padEnd(34)}  ${c.dim(msg.slice(0, 80))}`,
+            `${e.name.padEnd(34)}  ${c.dim(msg.slice(0, 100))}`,
         );
+      }
+    }
+
+    // Wait for all of THIS batch to reach terminal state before queueing
+    // the next one. Even without --wait we need to drain so HD will accept
+    // the next batch. The only thing --wait changes is verbosity.
+    if (ids.length === 0) continue;
+    if (args.wait) console.log(c.dim(`  waiting for ${ids.length} jobs…`));
+    for (const { name, id } of ids) {
+      const start = Date.now();
+      try {
+        const job = await hd.indexes.get(id);
+        await job.wait(2000, 3 * 60_000);
+        const secs = ((Date.now() - start) / 1000).toFixed(0);
+        if (args.wait) {
+          const tag =
+            job.status === "done" || job.status === "completed"
+              ? c.green(`  ✓ ${job.status}`)
+              : c.yellow(`  · ${job.status}`);
+          console.log(`  ${tag}  ${name.padEnd(34)}  ${c.dim(`${secs}s`)}`);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (args.wait) {
+          console.log(c.red(`  ✗ wait   `) + `${name.padEnd(34)}  ${c.dim(msg.slice(0, 80))}`);
+        }
       }
     }
   }
 
   console.log(
-    c.bold(
-      `\n▸ queued ${kickedOff.length}, skipped ${skipped}, failed ${failed}\n`,
-    ),
+    c.bold(`\n▸ queued ${kicked}, failed ${failed}\n`),
   );
-
-  if (args.dry || kickedOff.length === 0) return;
-
-  if (args.wait) {
-    console.log(c.dim(`  waiting for ${kickedOff.length} jobs to finish…\n`));
-    // Poll each job to terminal state. We serialize to keep the log readable;
-    // HD is already crawling them in parallel server-side.
-    for (const { name, id } of kickedOff) {
-      const start = Date.now();
-      try {
-        const job = await hd.indexes.get(id);
-        await job.wait(3000, 5 * 60_000);
-        const secs = ((Date.now() - start) / 1000).toFixed(0);
-        const tag =
-          job.status === "done" || job.status === "completed"
-            ? c.green(`✓ ${job.status}`)
-            : c.yellow(`· ${job.status}`);
-        console.log(`  ${tag}  ${name.padEnd(34)}  ${c.dim(`${secs}s`)}`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.log(c.red(`  ✗ wait   `) + `${name.padEnd(34)}  ${c.dim(msg)}`);
-      }
-    }
-    console.log("");
-  } else {
-    console.log(
-      c.dim(
-        `  check status with:  npx tsx scripts/hd-status.ts\n` +
-          `  or add --wait to block until done.\n`,
-      ),
-    );
-  }
 }
 
 main().catch((err) => {

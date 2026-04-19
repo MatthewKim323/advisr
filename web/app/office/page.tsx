@@ -1,39 +1,62 @@
 import Canvas from "@/components/office/Canvas";
 import ChatPanel from "@/components/chat/ChatPanel";
-import DepthHUD from "@/components/office/scene/DepthHUD";
-import Bubbles from "@/components/office/scene/Bubbles";
+import OfficeHUD from "@/components/office/OfficeHUD";
+import SearchBar from "@/components/office/SearchBar";
+import KnowledgeConstellation from "@/components/office/KnowledgeConstellation";
+import DeanInterjectionLayer from "@/components/office/DeanInterjectionLayer";
+import DropZone from "@/components/office/DropZone";
+import ProposalDrawer from "@/components/office/ProposalDrawer";
+import LocalIndexBootstrap from "@/components/office/LocalIndexBootstrap";
+import CrewBadge from "@/components/auth/CrewBadge";
+import { DEMO_STUDENT_ID } from "@/lib/utils/env";
 
 /**
- * /office — Bathysphere-7. The student-facing experience.
+ * /office — the counseling office. Student-facing.
  *
- * Layout:
- *   ┌──────────────────────────────────────────────────────┐
- *   │              DEPTH HUD (top)                         │
- *   ├──────────────────────────────┬───────────────────────┤
- *   │                              │                       │
- *   │        THE SUBMARINE          │        COMMS         │
- *   │          (Canvas)             │      (ChatPanel)     │
- *   │                              │                       │
- *   ├──────────────────────────────┴───────────────────────┤
- *   │              DEPTH HUD (bottom, fixed)               │
- *   └──────────────────────────────────────────────────────┘
+ *   ┌─────────────────────────────────────────────┐
+ *   │                  OFFICE HUD                  │
+ *   ├──────────────────────────────┬──────────────┤
+ *   │        SEARCH BAR (F1)        │              │
+ *   │    CANVAS (pixel office) +    │    CHAT      │
+ *   │   KnowledgeConstellation      │    PANEL     │
+ *   │   DropZone overlay + Log      │              │
+ *   │   ProposalDrawer (slide-in)   │              │
+ *   │   DeanInterjectionLayer       │              │
+ *   └──────────────────────────────┴──────────────┘
  *
- * Bubbles render on a fixed overlay so they hug the whole viewport gutter.
+ * All overlays mount inside the canvas column so the chat column stays
+ * predictable at 420px. The DropZone listens at document level so drops
+ * anywhere on the page still funnel through /api/upload.
  */
 export default function OfficePage() {
+  const studentId = DEMO_STUDENT_ID;
+
   return (
     <main
       className="relative flex min-h-screen flex-col"
-      style={{ background: "var(--abyss-deep)" }}
+      style={{ background: "var(--abyss-deep, #071521)" }}
     >
-      <DepthHUD />
+      <OfficeHUD crewBadge={<CrewBadge />} studentId={studentId} />
 
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_420px]">
-        <Canvas />
+        <div className="relative overflow-hidden">
+          <Canvas />
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <KnowledgeConstellation studentId={studentId} />
+          </div>
+          <div
+            className="pointer-events-none absolute inset-x-0 z-20 flex justify-center"
+            style={{ top: 24 }}
+          >
+            <SearchBar studentId={studentId} />
+          </div>
+          <DeanInterjectionLayer />
+          <DropZone studentId={studentId} />
+          <ProposalDrawer studentId={studentId} />
+          <LocalIndexBootstrap studentId={studentId} />
+        </div>
         <ChatPanel />
       </div>
-
-      <Bubbles />
     </main>
   );
 }

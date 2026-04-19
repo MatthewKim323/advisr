@@ -36,12 +36,14 @@ import { z } from "zod";
 
 import {
   searchLibrary,
-  type SearchResult,
+  type LibraryHit,
 } from "@/lib/humandelta";
+import { searchGraph } from "@/lib/humandelta/search";
 import { emit } from "@events/bus";
 import { SPECIALISTS, type Specialist } from "./specialists";
 import { runPacer } from "./pacer";
 import { draftSystemPrompt, type DraftPass } from "./draft";
+import { DEMO_STUDENT_ID } from "@/lib/utils/env";
 
 // ──────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -91,24 +93,28 @@ async function runTool<T>(
   }
 }
 
-/** Compact SearchResult → the minimal shape Dean actually uses. Keeps tokens
- *  reasonable; raw SearchResult has fields (`raw_score`, `score_kind`, etc.)
- *  that don't help Claude reason. */
+/** Compact LibraryHit → the minimal shape Dean actually uses. Keeps tokens
+ *  reasonable; the raw hit has fields (`raw_score`, `score_kind`, internal
+ *  ids) that don't help Claude reason. */
 type SlimHit = {
   source: string;
   url: string | null;
   score: number;
   text: string;
   title: string | null;
+  /** "local" | "web" | "document" — lets Dean signal to the student
+   *  whether a fact is curated from our library or pulled from HD. */
+  provenance: LibraryHit["source_type"];
 };
 
-function slim(h: SearchResult): SlimHit {
+function slim(h: LibraryHit): SlimHit {
   return {
     source: h.page_title ?? h.source_url ?? h.doc_id ?? "unknown",
     url: h.source_url ?? null,
     score: h.score,
     text: h.text,
     title: h.page_title ?? null,
+    provenance: h.source_type,
   };
 }
 
@@ -131,13 +137,129 @@ function placeholderReply(spec: Specialist, request: string): string {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Library-backed tool factory
+// Archivist — student-scoped Postgres chunk search
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Unlike the other library specialists, Archivist primarily searches the
+ * student's OWN uploaded data (Postgres `chunks` table) — that's the whole
+ * point of citations. Dean cites Postgres chunk UUIDs back in his output;
+ * the Citation component resolves those UUIDs.
+ *
+ * Fallback behavior: if the student library is empty for the given query,
+ * we also hit `searchLibrary` (HD + local curated corpus) so Dean still
+ * has ground-truth to work with, but those hits return provenance=`world`
+ * and Dean is instructed not to cite them via chunk tokens.
+ */
+function archivistTool(spec: Specialist, studentId: string) {
+  return tool({
+    description: [
+      spec.tagline,
+      spec.brief,
+      ``,
+      `Search the STUDENT'S OWN uploaded files (transcripts, essays, ` +
+        `activities, financial forms, voice-memo transcripts). Returns ` +
+        `ranked passages with real chunk IDs that you MUST cite in your ` +
+        `reply using the [chunk:<id>] syntax when you reference the ` +
+        `student's own words or data.`,
+      ``,
+      `If the library is empty, you'll get hits=[] — say so honestly ` +
+        `rather than guessing. Never invent a chunk id; only cite ids ` +
+        `returned by this tool.`,
+      ``,
+      `When to call: ${spec.invocationCues.map((c) => `"${c}"`).join(", ")}.`,
+    ].join(" "),
+    inputSchema: z.object({
+      query: z
+        .string()
+        .min(1)
+        .describe(
+          "Natural-language query. Use the student's own words when you " +
+            "can — the chunks contain their language.",
+        ),
+      topK: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .default(6)
+        .describe("Max passages to return. Keep small."),
+    }),
+    execute: async ({ query, topK }) => {
+      const res = await runTool(spec, { query, topK }, async () => {
+        // Primary: the student's own Postgres chunks.
+        const graph = await searchGraph({
+          query,
+          studentId,
+          scopes: ["student"],
+          topK,
+        });
+        const studentHits = graph.hitsByScope.student.map((h) => ({
+          chunkId: h.chunkId,
+          sourceFileId: h.sourceFileId ?? null,
+          sourceFilename: h.sourceFilename ?? null,
+          sourceKind: h.sourceKind,
+          text: h.text,
+          score: h.score,
+          offsetStart: h.offsetStart ?? null,
+          offsetEnd: h.offsetEnd ?? null,
+          provenance: "student" as const,
+        }));
+
+        // Fallback: curated/HD library when the student library has nothing.
+        let worldHits: ReturnType<typeof slim>[] = [];
+        if (studentHits.length === 0) {
+          const hits = await searchLibrary({
+            query,
+            topK,
+            domainAllowlist: spec.domainAllowlist,
+            categories: spec.libraryCategories,
+          });
+          worldHits = hits.map(slim);
+        }
+
+        return { studentHits, worldHits };
+      });
+
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          error: res.error,
+          note:
+            `Archivist couldn't reach the records room. Tell the student ` +
+            `honestly; don't fabricate citations.`,
+        };
+      }
+
+      const { studentHits, worldHits } = res.data;
+      const count = studentHits.length + worldHits.length;
+      return {
+        ok: true as const,
+        // `hits` kept for backwards-compat with old tool-output readers.
+        hits: studentHits.length > 0 ? studentHits : worldHits,
+        studentHits,
+        worldHits,
+        count,
+        citationsAvailable: studentHits.length,
+        citationHint:
+          studentHits.length > 0
+            ? "Cite these in your reply with [chunk:<chunkId>] when you " +
+              "reference the student's own words."
+            : "No student chunks matched — share general guidance " +
+              "without fabricating quotes.",
+      };
+    },
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Library-backed tool factory (non-Archivist)
 // ──────────────────────────────────────────────────────────────────────
 
 /** Build a tool that forwards to hd.search() with this specialist's domain
- *  allowlist. One factory, one `execute` impl — used for Archivist (student),
- *  Match-Maker, Scout. Bursar is a special case with parallel multi-school
- *  search, see `bursarTool` below. */
+ *  allowlist. One factory, one `execute` impl — used for Match-Maker and
+ *  Scout. Bursar is a special case with parallel multi-school search; see
+ *  `bursarTool` below. */
 function librarySearchTool(spec: Specialist) {
   const isStudent = spec.mode === "student";
   return tool({
@@ -179,6 +301,7 @@ function librarySearchTool(spec: Specialist) {
           query,
           topK,
           domainAllowlist: spec.domainAllowlist,
+          categories: spec.libraryCategories,
         });
         return hits.map(slim);
       });
@@ -261,6 +384,8 @@ function bursarTool(spec: Specialist) {
                 query: `${school} — ${question}`,
                 topK: perSchoolK,
                 domainAllowlist: spec.domainAllowlist,
+                categories: spec.libraryCategories,
+                preferSchools: [school],
               });
               return { school, hits: hits.map(slim) };
             }),
@@ -493,10 +618,15 @@ function placeholderTool(spec: Specialist) {
 // ──────────────────────────────────────────────────────────────────────
 
 /** Dean's concrete toolset. Keys match character IDs so the event stream
- *  and tool-call part names line up in the UI. */
-export function buildDeanTools() {
+ *  and tool-call part names line up in the UI.
+ *
+ *  Pass the current student's id so the Archivist can scope its Postgres
+ *  query correctly; falls back to DEMO_STUDENT_ID for unauthed flows.
+ */
+export function buildDeanTools(opts?: { studentId?: string }) {
+  const studentId = opts?.studentId ?? DEMO_STUDENT_ID;
   return {
-    archivist: librarySearchTool(SPECIALISTS.archivist),
+    archivist: archivistTool(SPECIALISTS.archivist, studentId),
     "match-maker": librarySearchTool(SPECIALISTS["match-maker"]),
     bursar: bursarTool(SPECIALISTS.bursar),
     scout: librarySearchTool(SPECIALISTS.scout),

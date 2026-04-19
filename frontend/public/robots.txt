@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Don't index the A/B backup of the old design
+Disallow: /leo
+
+Sitemap: https://nami.systems/sitemap.xml

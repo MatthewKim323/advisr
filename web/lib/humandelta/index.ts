@@ -18,6 +18,12 @@
 import "server-only";
 
 export { BASE_URL, getClient, requireClient, HdNotConfigured } from "./client";
-export { search, searchLibrary, type LibrarySearchArgs, type SearchResult } from "./search";
+export {
+  search,
+  searchLibrary,
+  type LibrarySearchArgs,
+  type SearchResult,
+  type LibraryHit,
+} from "./search";
 export { crawlSite, listIndexes, type IndexJob } from "./indexes";
 export { uploadDocument, listDocuments, deleteDocument, type HdDocument } from "./documents";

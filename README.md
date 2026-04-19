@@ -1,10 +1,50 @@
 # Nami
 
-A pixel-art AI counseling office that gives every first-gen student the team
-of specialists — **the Tsunami** — that rich kids hire for $50,000.
+Board the **Bathysphere-7** — a submerged, pixel-art counseling office that
+gives every first-gen student the crew of specialists — **the Tsunami** —
+that rich kids hire for $50,000. Captain Dean runs the deck. Six stations
+glow along the hull. The knowledge constellation floats overhead.
 
-Read **[PLAN.md](./PLAN.md)** for the full product spec — this README is just
-for finding your way around the repo.
+> Built on [Human Delta](https://humandelta.ai). Every claim Nami makes is a
+> receipt you can click back to a specific chunk of the student's own files.
+> That's the HD-native idea: **no chunk ID, no claim.** The knowledge graph
+> is grounded by construction, not by prayer.
+
+### Hero beat — "Tell me what I said"
+
+1. Student types `grandmother` into the sonar bar on the office deck.
+2. The Drafting station lights up: 6 hits. The Archivist's transcripts shelf
+   pulses once: 1 hit.
+3. Student types `robotics`. Drafting dims. The transcripts shelf lights
+   HARD: 14 hits.
+4. Dean, unprompted over the intercom: *"You wrote the page about your
+   grandmother. You told me about robotics. Want to write what's actually
+   yours?"*
+
+That single contrast — what she wrote vs. what she said — is the whole
+product thesis in one interaction. See `docs/hero-storyboard.md` for the full
+45s scripted beat.
+
+### Why this wins the HD prize
+
+- **Dual-scope graph.** Student scope (uploaded transcripts / essays /
+  activity lists) + world scope (college profiles, aid policies,
+  scholarships, style guides) — same `searchGraph()` signature, different
+  data, cross-linked by receipts.
+- **Source-to-UI binding layer.** Every SourceKind in the graph maps to a
+  concrete surface on the sub (`lib/office/surface-map.ts`). When a query
+  hits a transcript chunk, the Archivist's transcripts shelf glows. Visual
+  truth = graph truth.
+- **No fabrication, ever.** Dean's system prompt hard-fails on invented
+  claims; `lib/graph/profile.ts#render` injects `<student_profile>` every
+  turn so Dean never re-asks what the graph already knows.
+- **Optimistic light-up + server-echo reconciliation.** Keystroke → 150ms
+  debounce → local prefix match fires first → authoritative POST /api/search
+  catches up → reconcile(). The UI always feels instant; the server always
+  wins ties. See `lib/stores/officeStore.ts` + `lib/office/surface-map.ts`.
+
+Read **[PLAN.md](./PLAN.md)** for the full product spec — this README is
+just for finding your way around the repo.
 
 ---
 
