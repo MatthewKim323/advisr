@@ -1,0 +1,142 @@
+.manifesto {
+  padding: clamp(80px, 14vh, 160px) 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, rgba(244, 185, 74, 0.08), transparent 70%),
+    var(--void);
+  position: relative;
+}
+
+.manifesto-card {
+  position: relative;
+  padding: clamp(40px, 6vw, 80px) clamp(30px, 5vw, 60px);
+  border: 1px solid rgba(244, 185, 74, 0.3);
+  background: linear-gradient(180deg, rgba(244, 185, 74, 0.04), rgba(12, 22, 19, 0.6));
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .manifesto-card {
+    grid-template-columns: 200px 1fr;
+    gap: 60px;
+  }
+}
+
+/* A pixel desk lamp illustration */
+.manifesto-lamp {
+  position: relative;
+  width: 140px;
+  height: 160px;
+  justify-self: center;
+}
+
+.lamp-head {
+  position: absolute;
+  left: 30%;
+  top: 10%;
+  width: 60%;
+  height: 28px;
+  background: var(--rust-deep);
+  border: 3px solid var(--void);
+  transform: skewX(-20deg);
+  box-shadow: inset 0 4px 0 var(--rust);
+}
+
+.lamp-arm {
+  position: absolute;
+  left: 40%;
+  top: 30%;
+  width: 8px;
+  height: 70px;
+  background: var(--paper-dim);
+  transform: rotate(15deg);
+  transform-origin: bottom center;
+}
+
+.lamp-base {
+  position: absolute;
+  left: 26%;
+  bottom: 6%;
+  width: 48%;
+  height: 12px;
+  background: var(--rust-deep);
+  border: 3px solid var(--void);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+.lamp-base::before {
+  content: "";
+  position: absolute;
+  left: 40%;
+  top: -6px;
+  width: 20%;
+  height: 6px;
+  background: var(--paper-dim);
+}
+
+.lamp-glow {
+  position: absolute;
+  left: 0;
+  top: 14%;
+  width: 100%;
+  height: 70%;
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 20%,
+    rgba(244, 185, 74, 0.35),
+    transparent 70%
+  );
+  pointer-events: none;
+  animation: flicker 4s steps(6, end) infinite;
+}
+
+.manifesto-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.manifesto-eyebrow {
+  color: var(--lamp);
+  font-size: 0.72rem;
+}
+
+.manifesto-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.8rem, 4.4vw, 3.2rem);
+  line-height: 1.15;
+  color: var(--paper);
+  letter-spacing: -0.01em;
+}
+
+.manifesto-text em {
+  color: var(--lamp);
+  font-style: italic;
+}
+
+.manifesto-text .num {
+  color: var(--rust);
+  font-style: normal;
+  padding: 0 4px;
+}
+
+.manifesto-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.manifesto-foot {
+  margin: 0;
+  color: var(--paper-quiet);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  max-width: 60ch;
+  padding-top: 20px;
+  border-top: 1px dashed rgba(241, 228, 197, 0.15);
+}

@@ -1,0 +1,36 @@
+UC APPLICATION — PERSONAL INSIGHT QUESTION RESPONSE DRAFT
+Maria Delgado Santos
+PIQ #2: Every person has a creative side, and it can be expressed in many ways: problem
+solving, original and innovative thinking, and artistically, to name a few. Describe how
+you express your creative side.
+Word count: 343 / 350
+
+──────────────────────────────────────────────────────────
+
+My creativity lives in the space between what something is and what it could become.
+
+My grandmother, Lola Marites, keeps a collection of buttons in an old biscuit tin. They
+are buttons from blouses that fell apart decades ago, buttons from uniforms that no longer
+have owners, buttons with histories she can still recite. When I was young, she let me
+arrange them. I would sort them by color, then by size, then by the way they caught the
+light. She never told me the "right" way to sort them. She trusted me to find my own
+order.
+
+I think this is where my creative process began — in the quiet discipline of finding new
+patterns in familiar things. It is the same impulse that drew me to computer science,
+which I have come to love precisely because it rewards this kind of attention. A piece of
+code is like my grandmother's buttons: it is a collection of small, repeated elements that
+can be arranged, infinitely, into something new.
+
+Last year, my robotics team was working on an arm attachment for a wheelchair. I was
+responsible for the gripping mechanism. Everyone else wanted to make it stronger, faster,
+more industrial. I asked a different question: how do you hold something the way a human
+holds it — gently, adaptively, without breaking it? The answer came from an unexpected
+place: silicone molds from baking supply stores. We iterated through six designs. The
+final version could grip an eggshell without cracking it.
+
+I believe creativity is often just the willingness to take seriously the problems other
+people dismiss. It is learning to see buttons as a sorting problem, silicone as an
+engineering material, and patience, like my grandmother taught me, as a design principle.
+
+That is how I create.

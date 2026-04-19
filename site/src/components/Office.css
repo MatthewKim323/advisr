@@ -1,0 +1,320 @@
+.office {
+  background: var(--void);
+}
+
+.office-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: end;
+  margin-bottom: 56px;
+}
+
+@media (min-width: 900px) {
+  .office-head {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.office-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+  border: 1px dashed rgba(241, 228, 197, 0.2);
+  justify-self: start;
+}
+
+@media (min-width: 900px) {
+  .office-legend { justify-self: end; }
+}
+
+.office-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--paper-dim);
+  font-size: 0.72rem;
+}
+
+.office-legend .dot {
+  width: 10px;
+  height: 10px;
+}
+.office-legend .dot.lamp { background: var(--lamp); box-shadow: 0 0 8px var(--lamp); }
+.office-legend .dot.teal { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+.office-legend .dot.plum { background: var(--plum); box-shadow: 0 0 8px var(--plum); }
+.office-legend .dot.paper { background: var(--paper-dim); }
+
+/* --------- Floorplan frame --------- */
+
+.floorplan {
+  position: relative;
+  background: var(--void-2);
+  border: 1px solid rgba(241, 228, 197, 0.12);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.fp-chrome {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--ink);
+  border-bottom: 1px solid rgba(241, 228, 197, 0.08);
+  color: var(--paper-dim);
+  font-size: 0.68rem;
+}
+
+.fp-chrome-right {
+  color: var(--paper-quiet);
+}
+
+.fp-canvas {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background:
+    radial-gradient(ellipse 40% 30% at 50% 20%, rgba(244, 185, 74, 0.1), transparent 70%),
+    linear-gradient(180deg, #13221e, #0a1311);
+  overflow: hidden;
+}
+
+.fp-floor {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(241, 228, 197, 0.035) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(90deg, rgba(241, 228, 197, 0.035) 0 1px, transparent 1px 16px);
+}
+
+.fp-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* --------- Zones --------- */
+
+.zone {
+  position: absolute;
+  background: var(--void-3);
+  border: 2px solid rgba(241, 228, 197, 0.1);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 200ms ease, border-color 200ms ease;
+}
+
+.zone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(244, 185, 74, 0.05), transparent 80%);
+  pointer-events: none;
+}
+
+.zone:hover {
+  transform: translateY(-2px);
+  border-color: var(--lamp);
+  z-index: 5;
+}
+
+.zone-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  width: 100%;
+}
+
+.zone-sprite {
+  position: relative;
+  width: 18px;
+  height: 24px;
+  margin-bottom: 2px;
+}
+
+.zone-sprite::before {
+  /* head */
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+}
+
+.zone-avatar {
+  position: absolute;
+  inset: 0;
+  background: var(--paper-dim);
+  animation: breathe 3s ease-in-out infinite;
+}
+
+.zone-lamp {
+  position: absolute;
+  top: -18px;
+  right: -14px;
+  width: 6px;
+  height: 6px;
+  background: var(--lamp);
+  box-shadow: 0 0 10px var(--lamp);
+  animation: flicker 4s steps(6, end) infinite;
+}
+
+.zone-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.zone-name {
+  font-size: 0.68rem;
+  color: var(--paper);
+  letter-spacing: 0.04em;
+}
+
+.zone-role {
+  font-size: 0.56rem;
+  color: var(--paper-quiet);
+}
+
+.zone-state {
+  margin-top: 4px;
+  font-size: 0.54rem;
+  color: var(--lamp);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.state-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--lamp);
+  animation: blink 1.4s steps(2, end) infinite;
+}
+
+/* Accent variants */
+.zone-lamp .zone-avatar { background: var(--lamp); }
+.zone-rust .zone-avatar { background: var(--rust); }
+.zone-rust .zone-lamp,
+.zone-rust .zone-state { color: var(--rust); }
+.zone-rust .zone-lamp { background: var(--rust); box-shadow: 0 0 10px var(--rust); }
+
+.zone-teal .zone-avatar { background: var(--teal); }
+.zone-teal .zone-lamp { background: var(--teal); box-shadow: 0 0 10px var(--teal); }
+.zone-teal .zone-state,
+.zone-teal .zone-state .state-dot { color: var(--teal); background: transparent; }
+.zone-teal .state-dot { background: var(--teal); }
+
+.zone-plum .zone-avatar { background: var(--plum); }
+.zone-plum .zone-lamp { background: var(--plum); box-shadow: 0 0 10px var(--plum); }
+.zone-plum .zone-state { color: var(--plum); }
+.zone-plum .state-dot { background: var(--plum); }
+
+.zone-paper .zone-avatar { background: var(--paper-dim); }
+
+/* Dean gets a big lamp glow */
+.zone-lamp:first-of-type {
+  border-color: rgba(244, 185, 74, 0.4);
+}
+
+/* Couch */
+.zone-couch {
+  background: transparent;
+  border: 2px solid var(--rust-deep);
+}
+
+.zone-couch .zone-sprite::before {
+  background: #d0a679;
+}
+
+.zone-couch .zone-avatar {
+  background: var(--paper);
+}
+
+.zone-couch::before {
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(194, 90, 62, 0.12), transparent 80%);
+}
+
+/* --------- File drop --------- */
+.fp-drop {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+  width: 40%;
+  padding: 10px 14px;
+  background: rgba(244, 185, 74, 0.04);
+  border: 2px dashed rgba(244, 185, 74, 0.4);
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .fp-drop { display: block; }
+}
+
+.fp-drop-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+}
+
+.fp-drop-inner .pix {
+  font-size: 0.78rem;
+  color: var(--lamp);
+  animation: blink 2.4s steps(2, end) infinite;
+}
+
+.fp-drop-inner .mono {
+  font-size: 0.58rem;
+  color: var(--paper-quiet);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+/* --------- Notes row --------- */
+.office-notes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 48px;
+}
+
+@media (min-width: 860px) {
+  .office-notes { grid-template-columns: repeat(3, 1fr); }
+}
+
+.note {
+  padding: 24px;
+  border: 1px solid rgba(241, 228, 197, 0.1);
+  background: var(--void-2);
+}
+
+.note-label {
+  display: block;
+  font-size: 0.66rem;
+  color: var(--lamp);
+  margin-bottom: 10px;
+}
+
+.note p {
+  margin: 0;
+  color: var(--paper-dim);
+  font-size: 1rem;
+  line-height: 1.55;
+}

@@ -1,0 +1,180 @@
+.roster {
+  background: linear-gradient(180deg, var(--void-2), var(--void));
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  margin-top: 48px;
+}
+
+@media (min-width: 680px) {
+  .roster-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1040px) {
+  .roster-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.agent {
+  position: relative;
+  padding: 28px;
+  background: var(--void-3);
+  border: 1px solid rgba(241, 228, 197, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.agent::before {
+  /* office corner tab */
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background:
+    linear-gradient(135deg, transparent 50%, var(--void-2) 50%);
+  border-left: 1px solid rgba(241, 228, 197, 0.1);
+  border-bottom: 1px solid rgba(241, 228, 197, 0.1);
+}
+
+.agent:hover {
+  transform: translateY(-3px);
+  border-color: var(--lamp);
+}
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.agent-badge {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  background: var(--void);
+  border: 2px solid var(--lamp);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-stripe {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 100%;
+  height: 4px;
+  background: var(--lamp);
+}
+
+.agent-glyph {
+  font-size: 1.4rem;
+  color: var(--lamp);
+}
+
+.agent-ident {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-id {
+  font-size: 0.6rem;
+  color: var(--paper-quiet);
+}
+
+.agent-name {
+  margin: 2px 0;
+  font-size: 1.15rem;
+  color: var(--paper);
+  letter-spacing: 0.04em;
+}
+
+.agent-role {
+  font-size: 0.64rem;
+  color: var(--paper-dim);
+}
+
+.agent-tag {
+  margin: 0;
+  color: var(--paper);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.agent-meta {
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(241, 228, 197, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-meta div {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.agent-meta dt {
+  font-size: 0.58rem;
+  color: var(--paper-quiet);
+  margin: 0;
+}
+
+.agent-meta dd {
+  margin: 0;
+  color: var(--paper-dim);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.agent-quote {
+  margin: 0;
+  padding: 14px 16px;
+  border-left: 2px solid var(--lamp);
+  background: rgba(244, 185, 74, 0.05);
+  color: var(--paper);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* accent variants */
+.agent-lamp .agent-badge { border-color: var(--lamp); }
+.agent-lamp .agent-stripe { background: var(--lamp); }
+.agent-lamp .agent-glyph { color: var(--lamp); }
+.agent-lamp .agent-quote { border-color: var(--lamp); background: rgba(244, 185, 74, 0.05); }
+
+.agent-rust .agent-badge { border-color: var(--rust); }
+.agent-rust .agent-stripe { background: var(--rust); }
+.agent-rust .agent-glyph { color: var(--rust); }
+.agent-rust .agent-quote { border-color: var(--rust); background: rgba(194, 90, 62, 0.06); }
+
+.agent-teal .agent-badge { border-color: var(--teal); }
+.agent-teal .agent-stripe { background: var(--teal); }
+.agent-teal .agent-glyph { color: var(--teal); }
+.agent-teal .agent-quote { border-color: var(--teal); background: rgba(79, 141, 137, 0.07); }
+
+.agent-plum .agent-badge { border-color: var(--plum); }
+.agent-plum .agent-stripe { background: var(--plum); }
+.agent-plum .agent-glyph { color: var(--plum); }
+.agent-plum .agent-quote { border-color: var(--plum); background: rgba(107, 74, 124, 0.08); }
+
+.agent-paper .agent-badge { border-color: var(--paper-dim); }
+.agent-paper .agent-stripe { background: var(--paper-dim); }
+.agent-paper .agent-glyph { color: var(--paper); }
+.agent-paper .agent-quote { border-color: var(--paper-dim); background: rgba(200, 187, 159, 0.05); }

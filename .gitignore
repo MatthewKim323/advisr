@@ -1,0 +1,41 @@
+# Deps
+node_modules/
+.pnp
+.pnp.js
+
+# Builds
+dist/
+build/
+.next/
+out/
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Browser-use cache (large binary blobs — regenerate from scripts)
+web/lib/browser/.cache/
+
+# Private strategy doc — local only
+PLAN.md
+
+# Paid sprite pack — Donarg's license prohibits redistribution.
+# Purchase separately at itch.io and drop back into the repo root.
+Office Tileset/

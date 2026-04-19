@@ -1,0 +1,115 @@
+COMMON APPLICATION ACTIVITIES LIST — DRAFT
+Maria Delgado Santos
+10 slots maximum, activities listed in order of importance (per Common App convention)
+
+──────────────────────────────────────────────────────────
+
+1. SOCCER — VARSITY, CAPTAIN
+   Activity Type: Athletics — Club
+   Position/Leadership: Varsity Captain (Grade 12), Center Midfielder
+   Organization: Garfield High School Girls Varsity Soccer
+   Grade Levels: 9, 10, 11, 12
+   Timing: School year + summer
+   Hours/Week: 12     Weeks/Year: 30
+
+   Description: Starting center midfielder grades 10-12; elected captain
+   senior year. Led team to first winning season in four years. Organized
+   off-season conditioning for 22 players. 3rd team all-league, 2026.
+
+──────────────────────────────────────────────────────────
+
+2. ROBOTICS CLUB
+   Activity Type: Academic — STEM
+   Position/Leadership: Member (9-10), Outreach Programming Team Lead (11-12)
+   Organization: Garfield HS Robotics Club
+   Grade Levels: 9, 10, 11, 12
+   Timing: School year
+   Hours/Week: 8      Weeks/Year: 32
+
+   Description: Co-designed gripping mechanism for a wheelchair arm
+   attachment. Led outreach programming that brought robotics workshops
+   to two local middle schools. Project won 2025 Long Beach Regional
+   Community Impact Award.
+
+──────────────────────────────────────────────────────────
+
+3. IN-N-OUT BURGER — CASHIER, LEVEL 1 COOK
+   Activity Type: Work (Paid)
+   Position/Leadership: Level 1 Cook (promoted Spring 2026)
+   Organization: In-N-Out Burger — Long Beach Location
+   Grade Levels: 11, 12
+   Timing: School year + summer
+   Hours/Week: 15 (school), 30 (summer)    Weeks/Year: 50
+
+   Description: Started as cashier January 2026 to contribute to household
+   expenses after mother's work hours were reduced. Promoted to Level 1
+   cook after six months. Contribute approximately $400/month to family.
+
+──────────────────────────────────────────────────────────
+
+4. ST. ANTHONY'S YOUTH GROUP — MEMORY CARE VISITS PROGRAM
+   Activity Type: Religious / Community Service
+   Position/Leadership: Visit Coordinator (Grade 12), Member (9-11)
+   Organization: St. Anthony Catholic Church Youth Group
+   Grade Levels: 9, 10, 11, 12
+   Timing: School year + summer
+   Hours/Week: 3      Weeks/Year: 48
+
+   Description: Organize and lead monthly youth group visits to Bayside
+   Memory Care, a Catholic-affiliated facility. Coordinate volunteer
+   scheduling for 12 youth members. 142 total service hours across 4 years.
+
+──────────────────────────────────────────────────────────
+
+5. AAPI STUDENT UNION
+   Activity Type: Cultural / Affinity Group
+   Position/Leadership: Treasurer (Grade 12), Member (10-11)
+   Organization: Garfield HS AAPI Student Union
+   Grade Levels: 10, 11, 12
+   Timing: School year
+   Hours/Week: 2      Weeks/Year: 32
+
+   Description: Manage $2,400 annual budget. Coordinated Lunar New Year
+   cultural showcase (est. 400 attendees). Member since sophomore year.
+
+──────────────────────────────────────────────────────────
+
+6. MATH TUTORING (INFORMAL)
+   Activity Type: Academic — Tutoring
+   Position/Leadership: Self-directed
+   Organization: Independent
+   Grade Levels: 10, 11, 12
+   Timing: Spring + Summer
+   Hours/Week: 4      Weeks/Year: 20
+
+   Description: Tutor middle school students in Algebra 1 and
+   Pre-Algebra. $15/hour. Currently working with 3 students.
+
+──────────────────────────────────────────────────────────
+
+7. FAMILY CAREGIVING
+   Activity Type: Family Responsibility
+   Position/Leadership: Primary caregiver after school (shared with mother)
+   Organization: Family
+   Grade Levels: 11, 12
+   Timing: School year + summer
+   Hours/Week: 10     Weeks/Year: 52
+
+   Description: Shared caregiving responsibilities for grandmother
+   (early-stage vascular dementia) and younger brother while mother
+   works evening/overnight nursing shifts. Responsibilities include
+   meal preparation, medication reminders, and homework supervision.
+
+──────────────────────────────────────────────────────────
+
+8. CODING PROJECTS (SELF-DIRECTED)
+   Activity Type: Academic — Computer Science
+   Position/Leadership: Self-directed
+   Organization: Independent
+   Grade Levels: 11, 12
+   Timing: School year + summer
+   Hours/Week: 5      Weeks/Year: 35
+
+   Description: Built a simple medication reminder web app (React)
+   currently used by grandmother. Teaching self Python through
+   CS50 and freeCodeCamp. GitHub portfolio: 4 projects.

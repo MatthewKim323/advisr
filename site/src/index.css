@@ -1,0 +1,278 @@
+/* =========================================================
+   ADVISR — "After-hours at the counseling office" theme
+   ========================================================= */
+
+:root {
+  /* Palette — dim office, warm lamps, aged paper */
+  --void: #0a1311;            /* deep forest-ink background */
+  --void-2: #0f1a17;          /* slightly lifted surface */
+  --void-3: #142320;          /* cards */
+  --ink: #1c2f2a;             /* desk wood */
+  --moss: #3e5d47;            /* moss / sage divider */
+  --paper: #f1e4c5;           /* aged paper cream */
+  --paper-dim: #c8bb9f;       /* dusty paper */
+  --paper-quiet: #8a8774;     /* fine print */
+  --lamp: #f4b94a;            /* desk-lamp amber (primary accent) */
+  --lamp-hot: #ffcf66;        /* highlight */
+  --rust: #c25a3e;            /* oxblood / rust secondary */
+  --rust-deep: #7e3523;       /* deep rust */
+  --plum: #6b4a7c;            /* accent for Scout */
+  --teal: #4f8d89;            /* accent for Archivist */
+
+  /* Type stacks */
+  --font-display: "Silkscreen", "VT323", "Courier New", monospace;
+  --font-serif: "Instrument Serif", "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+
+  /* Rhythm */
+  --bezel: 2px;
+  --gutter: clamp(16px, 3vw, 32px);
+  --max: 1180px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--void);
+  color: var(--paper);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Paper-grain + scanline atmosphere layered on the body */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(241, 228, 197, 0.025) 0px,
+      rgba(241, 228, 197, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  mix-blend-mode: overlay;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      rgba(244, 185, 74, 0.06),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 100% 100%,
+      rgba(194, 90, 62, 0.05),
+      transparent 70%
+    );
+}
+
+/* -------- Layout primitives -------- */
+
+.wrap {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  position: relative;
+  z-index: 3;
+}
+
+.rule {
+  border: none;
+  border-top: 1px dashed rgba(241, 228, 197, 0.18);
+  margin: 0;
+}
+
+/* -------- Typography presets -------- */
+
+.pix {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper-quiet);
+}
+
+.serif-ital {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+/* -------- Buttons -------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  border: var(--bezel) solid var(--lamp);
+  background: var(--lamp);
+  color: var(--void);
+  box-shadow:
+    0 0 0 var(--bezel) var(--void),
+    4px 4px 0 var(--bezel) var(--lamp);
+  transition: transform 120ms steps(2, end), box-shadow 120ms steps(2, end);
+}
+
+.btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    0 0 0 var(--bezel) var(--void),
+    6px 6px 0 var(--bezel) var(--lamp);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow:
+    0 0 0 var(--bezel) var(--void),
+    0 0 0 var(--bezel) var(--lamp);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--paper);
+  border-color: var(--paper-dim);
+  box-shadow:
+    0 0 0 var(--bezel) var(--void),
+    4px 4px 0 var(--bezel) var(--paper-dim);
+}
+
+/* -------- Animations -------- */
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  48% { opacity: 1; }
+  50% { opacity: 0.82; }
+  52% { opacity: 1; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes typewait {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-2px); }
+}
+
+@keyframes drift {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* -------- Section shell -------- */
+
+section {
+  position: relative;
+  padding: clamp(60px, 10vh, 120px) 0;
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lamp);
+  margin-bottom: 20px;
+}
+
+.section-label::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--lamp);
+  box-shadow: 0 0 10px var(--lamp);
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  line-height: 1.05;
+  margin: 0 0 18px;
+  color: var(--paper);
+  letter-spacing: -0.01em;
+}
+
+.section-title em {
+  font-style: italic;
+  color: var(--lamp);
+}
+
+.section-sub {
+  max-width: 62ch;
+  color: var(--paper-dim);
+  font-size: 1.15rem;
+  line-height: 1.55;
+  margin: 0 0 48px;
+}
+
+/* Selection color */
+::selection {
+  background: var(--lamp);
+  color: var(--void);
+}
+
+/* Focus */
+:focus-visible {
+  outline: 2px solid var(--lamp);
+  outline-offset: 3px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  background: var(--void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--moss);
+  border: 2px solid var(--void);
+}
