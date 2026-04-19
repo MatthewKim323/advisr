@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Source Serif Pro';
+  src: url('/fonts/SourceSerifPro-SemiboldItalic.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/sourceserif4/v9/pe0mMiunS1vOnYv_vPz21_7P98O-VOP_N-O5.woff2') format('woff2');
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PP Neue Montreal';
+  src: url('/fonts/PPNeueMontreal-Book.woff2') format('woff2'),
+       url('https://fonts.cdnfonts.com/s/73919/PPNeueMontreal-Book.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Radio Canada Big';
+  src: url('/fonts/RadioCanadaBig-Bold.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/radiocanadabig/v1/pe0mMiunS1vOnYv_vPz21_7P98O-VOP_N-O5.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GIC Custom';
+  src: url('https://generalintelligencecompany.com/_next/static/media/17330fd087386262-s.p.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PP Mondwest';
+  src: url('/ppmondwest-regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Amstir Pixel';
+  src: url('/AmstirPixel-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: "PP Mondwest", "GIC Custom", "Source Serif Pro", serif;
+  --font-sans: "PP Neue Montreal", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "Amstir Pixel", "Courier New", Courier, monospace;
+  --font-logo: "Radio Canada Big", sans-serif;
+  --font-mondwest: "PP Mondwest", serif;
+  --font-pixel: "Amstir Pixel", monospace;
+}
+
+@layer base {
+  h2, h3 {
+    @apply font-display font-semibold italic;
+  }
+  h1 {
+    @apply font-logo font-bold;
+  }
+  body {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .liquid-glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .liquid-glass-strong {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+}
+
+body {
+  @apply bg-[#080E1A] text-white antialiased;
+  overflow-x: hidden;
+}
