@@ -1,6 +1,6 @@
 # Human Delta integration
 
-Advisr is a team of six specialist agents. Four of them get their
+Nami is powered by the Tsunami — a team of six specialist agents. Four of them get their
 domain knowledge from Human Delta — one unified semantic search layer
 over everything we've crawled (schools, financial aid pages,
 scholarship directories) and everything the student has uploaded

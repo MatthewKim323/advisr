@@ -45,7 +45,7 @@ export default function Manifesto() {
               college counseling is v1. the architecture generalizes to any
               domain where rich people buy a team of specialists and poor
               people don't have one — legal navigation, healthcare, financial
-              planning. advisr is the first node.
+              planning. nami is the first node.
             </p>
           </div>
         </div>

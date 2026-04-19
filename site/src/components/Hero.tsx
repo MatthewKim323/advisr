@@ -22,9 +22,9 @@ export default function Hero() {
           </span>
 
           <h1 className="hero-title">
-            <span className="pix hero-wordmark">Advisr</span>
+            <span className="pix hero-wordmark">Nami</span>
             <span className="hero-tagline">
-              The counseling office <em>every&nbsp;student</em>
+              The <em>tsunami</em> <em>every&nbsp;student</em>
               <br />
               deserves.
             </span>
@@ -38,9 +38,10 @@ export default function Hero() {
           </p>
 
           <p className="hero-lede dim">
-            Advisr is that team — seven AI specialists sharing a persistent,
-            evidence-backed knowledge graph of the student, working together
-            inside a pixel-art office you can actually watch.
+            Nami is that team — Dean and <em>the Tsunami</em>, six AI
+            specialists sharing a persistent, evidence-backed knowledge graph
+            of the student, working together inside a pixel-art office you can
+            actually watch.
           </p>
 
           <div className="hero-ctas">
@@ -59,7 +60,7 @@ export default function Hero() {
               <dd className="pix">$50K</dd>
             </div>
             <div>
-              <dt className="mono">advisr</dt>
+              <dt className="mono">nami</dt>
               <dd className="pix">$0</dd>
             </div>
             <div>

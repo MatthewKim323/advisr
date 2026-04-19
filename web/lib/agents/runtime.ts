@@ -8,7 +8,7 @@
  *   - `app/api/chat/route.ts` streams the result back to the client via
  *     `result.toUIMessageStreamResponse()`.
  *
- * Nothing here is Advisr-specific beyond the model + prompt + tools. If you
+ * Nothing here is Nami-specific beyond the model + prompt + tools. If you
  * need a non-streaming variant (e.g. background summarization), add it here
  * with the same tool surface so Dean behaves identically.
  *

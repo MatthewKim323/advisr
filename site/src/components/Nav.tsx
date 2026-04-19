@@ -5,12 +5,12 @@ export default function Nav() {
   return (
     <header className="nav">
       <div className="wrap nav-row">
-        <a href="#top" className="nav-brand" aria-label="Advisr, home">
+        <a href="#top" className="nav-brand" aria-label="Nami, home">
           <span className="nav-logo" aria-hidden>
             <span className="nav-logo-pixel" />
           </span>
-          <span className="pix nav-wordmark">advisr</span>
-          <span className="mono nav-sub">//&nbsp;the counseling office</span>
+          <span className="pix nav-wordmark">nami</span>
+          <span className="mono nav-sub">//&nbsp;the tsunami is on its way</span>
         </a>
 
         <nav className="nav-links">

@@ -74,7 +74,7 @@ export default function Memory() {
         </h2>
         <p className="section-sub">
           Most AI counseling tools are stateless chatbots — the conversation
-          ends, the LLM forgets. Advisr replaces that with a persistent,
+          ends, the LLM forgets. Nami replaces that with a persistent,
           evidence-backed knowledge graph. Every downstream agent queries{" "}
           <em>who the student actually is</em> instead of re-deriving context
           on every turn. Before a claim becomes truth, the student approves it.

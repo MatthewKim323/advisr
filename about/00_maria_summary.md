@@ -77,7 +77,7 @@ Each artifact plants callback material:
 - **"Match-Maker filtered for Catholic schools with merit aid because it read her confirmation photo"**
 - **"Draft caught that her grandmother theme repeats across Common App and UC PIQ — and found a stronger moment from her voice memo"**
 - **"Bursar shows that Santa Clara would cost LESS than CSU Long Beach because of meet-full-need aid"** (this is the Bursar wow moment)
-- **"Advisr identified Harvey Mudd HCI as a reach that fits her goals — a school she never would have applied to on her own"**
+- **"Nami identified Harvey Mudd HCI as a reach that fits her goals — a school she never would have applied to on her own"**
 
 ## What Makes Maria Different From A Generic Demo Persona
 
@@ -88,4 +88,4 @@ Most hackathon demo personas are thin — "Jake, 17, wants to study CS, help him
 - She has a **financial picture** where the product's advice creates real dollar-amount differences
 - She has **cross-artifact themes** (grandmother, caretaking, assistive tech) that only a memory-first system can connect
 
-This is why judges will feel the difference between "ChatGPT with prompts" and Advisr.
+This is why judges will feel the difference between "ChatGPT with prompts" and Nami.

@@ -1,6 +1,6 @@
-# Human Delta in Advisr
+# Human Delta in Nami
 
-> TL;DR — Advisr is six specialist agents. Four of them run on Human Delta.
+> TL;DR — Nami is six specialist agents — the Tsunami. Four of them run on Human Delta.
 > Every external fact the agents produce (admit rates, FAFSA rules,
 > scholarship matches) and every student memory they pull (transcripts,
 > essays, counselor notes) flows through one Human Delta knowledge graph.
@@ -26,7 +26,7 @@ searchable chunks. Drop a URL, get a full crawled site. One call to
 ## Where HD lives in the repo
 
 ```
-advisr/
+nami/
 ├── HUMAN_DELTA.md                    ← you are here
 │
 └── web/
@@ -120,6 +120,27 @@ npm run hd:seed:all -- --wait                      # full seed
 Adding a new school / source: edit the matching file in
 `web/lib/humandelta/seeds/`, then rerun the seed command. Dedupe is
 automatic (job names are compared against existing).
+
+## Known quirks we worked around
+
+- **SDK search silently returns `[]`.** `humandelta@0.1.x` expects
+  `/v1/search` to return a bare `SearchResult[]`, but the production API
+  wraps results in `{ results: [...] }`. So `hd.search()` always reports
+  zero hits even when the library has content. Our `search()` in
+  `lib/humandelta/search.ts` hits REST directly and unwraps. Would have
+  saved us a full day of "why is HD returning nothing" had it been
+  documented. Remove the workaround once a fixed SDK ships.
+- **Crawler batching.** HD caps concurrent index jobs at 5 per key. Our
+  seed script batches the queue into groups of 5 and drains each batch
+  to terminal state before queueing the next (see `seed-hd.mts`).
+- **`page_count: 0` is a lie.** Every completed index job reports zero
+  pages regardless of what was actually indexed. Don't trust that field;
+  probe with `npm run hd:probe "query"` to see what actually chunked.
+- **Niche / JS-heavy sites crawl poorly.** HD's crawler is static-HTML
+  only; JS-rendered pages (like Niche college profiles) often yield only
+  the cookie banner. We lean on Wikipedia for school facts — dense,
+  server-rendered, chunks cleanly. Niche stays in the mix as secondary
+  signal where it does surface real content.
 
 ## Design calls worth flagging
 

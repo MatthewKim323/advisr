@@ -95,7 +95,7 @@ const agents: Agent[] = [
     model: "Claude Haiku",
     tagline:
       "Tracks every deadline — applications, FAFSA, CSS Profile, scholarships, supplementals. Pings before things go critical.",
-    killer: "Every other AI waits for you to ask. Advisr wakes up and tells you what you should be doing.",
+    killer: "Every other AI waits for you to ask. Nami wakes up and tells you what you should be doing.",
   },
 ];
 
@@ -103,15 +103,15 @@ export default function Roster() {
   return (
     <section id="team" className="roster">
       <div className="wrap">
-        <div className="section-label">// the roster · seven specialists</div>
+        <div className="section-label">// the tsunami · seven specialists</div>
         <h2 className="section-title">
-          Your <em>team</em> of seven.
+          Meet the <em>Tsunami.</em>
         </h2>
         <p className="section-sub">
-          Each agent has a role, a personality, a set of tools, and a desk in
-          the office. They're not fancy wrappers on the same model — they're
-          specialists. An orchestrator routes the conversation. The other six
-          bring back real work.
+          Dean plus six specialists — the <em>Tsunami</em>. Each has a role,
+          a personality, a set of tools, and a desk in the office. They're not
+          fancy wrappers on the same model — they're specialists. Dean routes
+          the conversation. The other six bring back real work.
         </p>
 
         <div className="roster-grid">

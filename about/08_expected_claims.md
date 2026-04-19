@@ -196,7 +196,7 @@ Breakdown:
 KEY SYNTHESIS CLAIMS (produced by Dean during session, not a worker)
 
 These are claims the orchestrator synthesizes across multiple workers'
-outputs — the "memory-first" magic that makes Advisr different:
+outputs — the "memory-first" magic that makes Nami different:
 
   - essay_weakness_cross_artifact: {essay_v3, piq_1, repeat_grandmother}
   - Draft identifies the stronger essay topic hiding in the voice memo

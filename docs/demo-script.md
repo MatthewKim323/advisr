@@ -33,5 +33,5 @@ voiceover, which is still TODO (PLAN.md §11 "Planning still to do").
 ## Backup objection answers (rehearse these)
 
 - **Privacy.** "Data encrypted at rest, user-owned graph, never used for training, full export anytime."
-- **vs. ChatGPT.** "ChatGPT forgets her at every turn. Advisr builds a persistent, evidence-backed profile and delegates to specialists with real tools."
-- **Replacing counselors?** "Supplementing. School counselors carry 400 students. Advisr is the specialist team they can't provide alone."
+- **vs. ChatGPT.** "ChatGPT forgets her at every turn. Nami builds a persistent, evidence-backed profile and delegates to the Tsunami — six specialists with real tools."
+- **Replacing counselors?** "Supplementing. School counselors carry 400 students. The Tsunami is the specialist team they can't provide alone."

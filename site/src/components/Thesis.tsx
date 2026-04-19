@@ -56,9 +56,10 @@ export default function Thesis() {
         </div>
 
         <p className="thesis-close serif-ital">
-          Advisr closes both gaps. A persistent, evidence-backed knowledge
-          graph of the student — and a <em>team</em> of specialists working
-          together to advocate for them. We replicate a team with a team.
+          Nami closes both gaps. A persistent, evidence-backed knowledge
+          graph of the student — and the <em>Tsunami</em>, a team of six
+          specialists working together to advocate for them. We replicate a
+          team with a team.
         </p>
       </div>
     </section>

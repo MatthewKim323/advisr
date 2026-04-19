@@ -1,7 +1,7 @@
-# Advisr — The Counseling Office
+# Nami
 
 A pixel-art AI counseling office that gives every first-gen student the team
-of specialists that rich kids hire for $50,000.
+of specialists — **the Tsunami** — that rich kids hire for $50,000.
 
 Read **[PLAN.md](./PLAN.md)** for the full product spec — this README is just
 for finding your way around the repo.
@@ -11,19 +11,19 @@ for finding your way around the repo.
 ## Repo layout
 
 ```
-advisr/
+nami/
 ├── PLAN.md            # Source of truth. Do not delete.
 ├── README.md          # You are here.
 ├── .env.example       # Keys expected at runtime.
 ├── about/             # Maria Isabel Delgado Santos — the composite student.
 │                      # 8 artifacts used as demo fixtures + Archivist seed data.
 ├── site/              # The public landing page. Vite + React + TS, pure CSS.
-│                      # Served standalone at advisr.[tld]. No backend.
+│                      # Served standalone at nami.[tld]. No backend.
 ├── web/               # The main application. Next.js 16 + Drizzle + Supabase.
 │   ├── app/           #   Routes: /office (canvas), /proposals, /api/*
 │   ├── components/    #   Office canvas, chat panel, ProposalQueue UI.
 │   ├── lib/
-│   │   ├── agents/    #   Dean + 6 specialists + Archivist workers.
+│   │   ├── agents/    #   Dean + 6 specialists (the Tsunami) + Archivist workers.
 │   │   ├── graph/     #   Knowledge graph helpers + predicate vocabulary.
 │   │   ├── db/        #   Drizzle schema, client, migrations.
 │   │   ├── events/    #   Event bus types + Supabase Realtime wiring.
@@ -69,7 +69,7 @@ Copy `.env.example` → `web/.env.local` and fill in. You need:
 
 ## Reading order for a new contributor
 
-1. `PLAN.md` §1–§3 — why Advisr exists, who the agents are
+1. `PLAN.md` §1–§3 — why Nami exists, who the Tsunami are
 2. `PLAN.md` §5 + `web/lib/graph/predicates.ts` — how memory works
 3. `web/lib/db/schema.ts` — the 4 tables
 4. `web/lib/events/types.ts` — the pub/sub contract

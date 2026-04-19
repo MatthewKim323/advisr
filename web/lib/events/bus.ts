@@ -20,7 +20,7 @@ import type { AgentEvent } from "./types";
 
 type Subscriber = (evt: AgentEvent) => void;
 
-const GLOBAL_KEY = "__advisr_event_bus__" as const;
+const GLOBAL_KEY = "__nami_event_bus__" as const;
 
 type BusState = {
   subscribers: Set<Subscriber>;

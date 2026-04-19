@@ -5,9 +5,9 @@ export default function Footer() {
     <footer className="footer">
       <div className="wrap footer-wrap">
         <div className="footer-brand">
-          <span className="pix footer-word">advisr</span>
+          <span className="pix footer-word">nami</span>
           <span className="mono footer-tag">
-            // the counseling office · education &amp; social justice · solo build
+            // the tsunami is on its way · education &amp; social justice · solo build
           </span>
         </div>
 
@@ -48,7 +48,7 @@ export default function Footer() {
         </div>
 
         <div className="footer-meta mono">
-          <span>© {new Date().getFullYear()} advisr — built solo by matthew kim</span>
+          <span>© {new Date().getFullYear()} nami — built solo by matthew kim</span>
           <span className="footer-flex"><span className="dot" /> office open</span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /**
  * DepthHUD — top + bottom frames showing sub vitals.
@@ -9,8 +9,13 @@ import { useEffect, useState } from "react";
  * Bottom bar: crew status (all 7 agents), current mission, sonar indicator
  *
  * All VT323 for that CRT-green submarine readout feel.
+ *
+ * Receives `crewBadge` as a prop rather than importing it directly so a
+ * server-rendered auth chip (see `components/auth/CrewBadge.tsx`) can be
+ * threaded through this client boundary without re-fetching the user on
+ * the browser.
  */
-export default function DepthHUD() {
+export default function DepthHUD({ crewBadge }: { crewBadge?: ReactNode }) {
   const clock = useMissionClock();
 
   return (
@@ -30,12 +35,13 @@ export default function DepthHUD() {
       >
         <span className="flex items-center gap-4">
           <SurfaceButton />
+          {crewBadge}
           <span style={{ color: "var(--brass)" }}>
             <span
               className="pixel-text"
               style={{ fontSize: 10, marginRight: 10, letterSpacing: "0.18em" }}
             >
-              ADVISR
+              NAMI
             </span>
             // BATHYSPHERE-7
           </span>
