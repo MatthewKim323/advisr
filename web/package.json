@@ -8,7 +8,13 @@
     "build": "next build",
     "start": "next start -p 2847",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "hd:status": "tsx scripts/hd-status.mts",
+    "hd:seed": "tsx scripts/seed-hd.mts",
+    "hd:seed:match-maker": "tsx scripts/seed-hd.mts match-maker",
+    "hd:seed:bursar": "tsx scripts/seed-hd.mts bursar",
+    "hd:seed:scout": "tsx scripts/seed-hd.mts scout",
+    "hd:seed:all": "tsx scripts/seed-hd.mts all"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
@@ -26,8 +32,10 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.4.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.0"
   }
 }
