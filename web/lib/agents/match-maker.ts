@@ -7,7 +7,8 @@
  * Ranking: admit_rate × demographic_admit_rate × institutional_fit
  *          × net_cost × grad_rate × outcome_by_major × hidden_gem_heuristics.
  *
- * Tools: browser-use on College Scorecard + Niche. CDS cached for speed.
+ * Retrieval (revised): queries Human Delta against a pre-indexed `colleges`
+ * library (College Scorecard, Niche profiles, CDS PDFs). No live scraping.
  * Writes: `considering_school` claims with tier.
  */
 

@@ -58,6 +58,66 @@ export async function search(query: string, topK = 10): Promise<SearchResult[]> 
   return requireClient().search(query, topK);
 }
 
+/**
+ * Specialist-scoped search.
+ *
+ * HD's flat `search()` returns hits across everything indexed on this API
+ * key. To keep Scout from quoting a Niche college profile and vice versa, we
+ * post-filter the result set by `source_url` against a per-specialist domain
+ * allowlist.
+ *
+ * The allowlist is matched as a suffix against the URL's hostname. So:
+ *   - "niche.com"          matches  https://www.niche.com/colleges/yale/
+ *   - ".edu"               matches  https://financialaid.columbia.edu/npc
+ *   - "scholarships.com"   matches  https://www.scholarships.com/abc
+ *
+ * Over-fetching is intentional: we ask HD for 3x the requested topK since
+ * many hits will be filtered out. If we end up under-returning often, bump
+ * the multiplier. For the demo/hackathon scale (hundreds of pages), this is
+ * cheap and fine.
+ *
+ * Empty allowlist → return every hit (used by the Archivist, which serves
+ * the student's own uploaded library — no external sources to filter).
+ */
+export interface LibrarySearchArgs {
+  query: string;
+  topK?: number;
+  /** Domain suffixes. Empty/undefined = no filtering. */
+  domainAllowlist?: string[];
+}
+
+export async function searchLibrary(
+  args: LibrarySearchArgs,
+): Promise<SearchResult[]> {
+  const { query, topK = 6, domainAllowlist } = args;
+  const fetchK = domainAllowlist && domainAllowlist.length > 0 ? topK * 3 : topK;
+
+  const hits = await requireClient().search(query, fetchK);
+
+  if (!domainAllowlist || domainAllowlist.length === 0) {
+    return hits.slice(0, topK);
+  }
+
+  const filtered = hits.filter((h) => {
+    const url = h.source_url ?? "";
+    let host = "";
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      // Malformed URL (can happen for document sources) — keep them only if
+      // the allowlist includes the special "." suffix.
+      return domainAllowlist.includes(".");
+    }
+    return domainAllowlist.some((suffix) => {
+      const s = suffix.toLowerCase();
+      // Suffix match so ".edu" catches columbia.edu, niche.com catches www.niche.com
+      return host === s || host.endsWith(s.startsWith(".") ? s : `.${s}`) || host.endsWith(s);
+    });
+  });
+
+  return filtered.slice(0, topK);
+}
+
 /* ──────────────────────────────────────────────────────────────
    Indexes — website crawls. e.g. point Archivist at a college's
    admissions site to ingest all their pages into the library.

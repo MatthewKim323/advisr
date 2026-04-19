@@ -5,8 +5,9 @@
  * precision using graph claims (demographics, interests, activities,
  * financial need, intended major).
  *
- * Open question: pick ONE site — Bold.org (auth wall), Scholarships.com,
- * Going Merry, Fastweb — evaluate and own it. See PLAN.md §11.
+ * Retrieval (revised): query Human Delta against a pre-indexed `scholarships`
+ * library. Ingest from Scholarships.com, Going Merry, Fastweb (Bold.org is
+ * auth-walled — skip). No live scraping.
  *
  * Writes `eligible_for_scholarship` claims.
  */
