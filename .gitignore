@@ -36,15 +36,8 @@ web/lib/browser/.cache/
 # Private strategy doc — local only
 PLAN.md
 
-# Paid sprite pack — Donarg's license prohibits redistribution.
-# Purchase separately at itch.io and drop back into the repo root.
+# Full Donarg / Kenney source trees (optional local copies — use web/scripts/sync-sprites.sh)
 Office Tileset/
-
-# Kenney RPG Urban Pack — CC0, but we don't want asset blobs in the repo.
-# Download at kenney.nl/assets/rpg-urban-pack and drop back into the repo root.
 kenney_rpg-urban-pack/
 
-# Copied sprite assets served by Next.js. Populated locally from the packs above.
-# Not committed for the same licensing + repo-bloat reasons.
-web/public/sprites/office/
-web/public/sprites/chars/
+# Pixel atlases under web/public/sprites/ are tracked — ship with the app.

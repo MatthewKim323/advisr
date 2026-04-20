@@ -1,8 +1,21 @@
 # Sprites
 
-Asset blobs served by Next.js for the pixel office. Populated locally from the
-sprite packs at the repo root — **not committed** because of Donarg's license
-and general repo-bloat hygiene (see root `.gitignore`).
+PNG atlases served by Next.js from **`web/public/sprites/`** — **tracked in git**
+so clones get the Bathysphere art without manual copy steps.
+
+**Refreshing from local vendor folders** (optional): if you keep full Donarg /
+Kenney trees outside the repo, run:
+
+```bash
+cd web && npm run sprites:sync
+```
+
+**License:** ensure your deployment respects Donarg / Kenney terms. Kenney RPG
+Urban is CC0. Donarg “Office Interior” is a paid pack — redistribution in a
+public repo may require checking itch.io license terms for your use case.
+
+If files are missing in a broken checkout, `PixelWorld` still draws procedural
+placeholder atlases so the scene isn’t empty.
 
 ## Layout
 
