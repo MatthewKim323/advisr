@@ -194,8 +194,9 @@ export default function CritiquePage() {
   const gaugeLabelRef = useRef<HTMLSpanElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const heroCursorRef = useRef<HTMLDivElement | null>(null);
-  const pillNavRef = useRef<HTMLElement | null>(null);
-  const pillCtaRef = useRef<HTMLButtonElement | null>(null);
+
+  // hero submarine video — scrubbed by scroll instead of autoplay loop
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // auto-cycling log step highlight — stolen from iris's Thesis auto-advance
   const [activeStep, setActiveStep] = useState(0);
@@ -235,8 +236,11 @@ export default function CritiquePage() {
 
       const font = document.createElement('link');
       font.rel = 'stylesheet';
+      // Barlow = body (--f-body), Instrument Serif = accent (--f-accent),
+      // JetBrains Mono = mono (--f-mono). Newsreader stays as a graceful
+      // fallback for the display var in case PP Mondwest doesn't load.
       font.href =
-        'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap';
+        'https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&display=swap';
       document.head.appendChild(font);
     }
 
@@ -244,7 +248,6 @@ export default function CritiquePage() {
     const gauge = gaugeRef.current;
     const gaugeFill = gaugeFillRef.current;
     const gaugeLabel = gaugeLabelRef.current;
-    const pillNav = pillNavRef.current;
 
     let ticking = false;
     const onScroll = () => {
@@ -263,8 +266,6 @@ export default function CritiquePage() {
           const fathoms = Math.round(p * 2400);
           gaugeLabel.textContent = `${String(fathoms).padStart(4, '0')}\u00A0fm`;
         }
-
-        if (pillNav) pillNav.classList.toggle('is-visible', y > 420);
 
         ticking = false;
       });
@@ -348,6 +349,115 @@ export default function CritiquePage() {
     };
   }, []);
 
+  /**
+   * Hero submarine video — scroll-scrubbed.
+   *
+   * The hero is ~100vh tall. The video is its ambient background. Instead
+   * of looping on autoplay, we map the hero's visible scroll range to
+   * `video.currentTime` — so the full clip plays exactly across the window
+   * where the user can see it (from hero-top entering viewport → hero-bottom
+   * leaving viewport). Scroll back up, it rewinds.
+   *
+   * We never call .play() in steady state — just drive currentTime. A lerp'd
+   * rAF loop smooths raw scroll deltas (trackpads emit noisy ticks; direct
+   * writes read as jittery). iOS needs a silent play+pause on metadata load
+   * to hydrate the decoder before currentTime writes take effect.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hero = heroRef.current;
+    const video = heroVideoRef.current;
+    if (!hero || !video) return;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // honor the user — no scrubbing, just hold frame 0
+      video.pause();
+      try { video.currentTime = 0; } catch {}
+      return;
+    }
+
+    let raf = 0;
+    let displayTime = 0;
+    let targetTime = 0;
+    let active = false;
+    let warmedUp = false;
+
+    const computeTarget = () => {
+      if (!video.duration || !isFinite(video.duration)) return;
+      const rect = hero.getBoundingClientRect();
+      // Visible-range scrub: the scroll distance across which the hero is
+      // on-screen (top entering → bottom leaving) is heroHeight + viewport.
+      // That's the window the user can "view" the video across, which is
+      // exactly what the full clip should play over.
+      const total = rect.height + window.innerHeight;
+      if (total <= 0) { targetTime = 0; return; }
+      const scrolled = Math.max(0, Math.min(total, window.innerHeight - rect.top));
+      const p = scrolled / total;
+      targetTime = p * video.duration;
+    };
+
+    const tick = () => {
+      if (!active) return;
+      displayTime += (targetTime - displayTime) * 0.18;
+      if (Math.abs(targetTime - displayTime) > 0.004) {
+        try {
+          video.currentTime = displayTime;
+        } catch {
+          /* WebKit throws if duration hasn't fully loaded — ignore */
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    const start = () => {
+      if (active) return;
+      active = true;
+      computeTarget();
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => { active = false; cancelAnimationFrame(raf); };
+
+    const warmUp = async () => {
+      if (warmedUp) return;
+      warmedUp = true;
+      // iOS/Safari frame-scrub trick: force decoder hydration with a silent
+      // play/pause. Without this, `currentTime = x` on a never-played video
+      // is a no-op on some WebKit builds.
+      video.muted = true;
+      try { await video.play(); } catch { /* autoplay blocked — desktop is fine */ }
+      video.pause();
+      try { video.currentTime = 0; } catch {}
+    };
+
+    const onMeta = () => { void warmUp().then(computeTarget); };
+    const onScroll = () => { computeTarget(); };
+    const onResize = () => { computeTarget(); };
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) start(); else stop();
+        }
+      },
+      {root: null, rootMargin: '200px 0px', threshold: 0},
+    );
+
+    if (video.readyState >= 1) onMeta();
+    else video.addEventListener('loadedmetadata', onMeta, {once: true});
+
+    window.addEventListener('scroll', onScroll, {passive: true});
+    window.addEventListener('resize', onResize);
+    io.observe(hero);
+
+    return () => {
+      stop();
+      io.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      video.removeEventListener('loadedmetadata', onMeta);
+    };
+  }, []);
+
   const onAnchor = (e: MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href') ?? '';
     if (!href.startsWith('#')) return;
@@ -377,14 +487,6 @@ export default function CritiquePage() {
       {/* film-grain overlay — fixed across viewport */}
       <NoiseOverlay />
 
-      {/* A/B toggle */}
-      <div className="critique-ab-toggle" role="navigation" aria-label="A/B toggle">
-        <a href="/leo">leo</a>
-        <a href="/" className="is-active">
-          nami
-        </a>
-      </div>
-
       {/* fixed depth gauge — scroll-linked "fathoms" readout */}
       <div className="depth-gauge" ref={gaugeRef} aria-hidden="true">
         <span className="depth-gauge-label">Depth</span>
@@ -399,19 +501,6 @@ export default function CritiquePage() {
         <span className="depth-gauge-label" ref={gaugeLabelRef}>
           0000&nbsp;fm
         </span>
-      </div>
-
-      {/* sonar loading screen */}
-      <div className="loader" aria-hidden="true">
-        <div className="loader-rings">
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-sweep" />
-          <div className="loader-core" />
-          <div className="loader-label">nami · deploying crew</div>
-        </div>
       </div>
 
       {/* nav */}
@@ -430,9 +519,6 @@ export default function CritiquePage() {
               </a>
               <a href="#crew" onClick={onAnchor}>
                 the crew
-              </a>
-              <a href="#dispatch" onClick={onAnchor}>
-                dispatch
               </a>
               <a href="#log" onClick={onAnchor}>
                 log
@@ -458,7 +544,13 @@ export default function CritiquePage() {
       {/* hero */}
       <section className="hero" id="top" ref={heroRef}>
         <div className="hero-bg">
-          <video autoPlay loop muted playsInline poster="">
+          <video
+            ref={heroVideoRef}
+            muted
+            playsInline
+            preload="auto"
+            poster=""
+          >
             <source
               src="https://d8j0ntlcm91z4.cloudfront.net/user_3CZPMI9yqo0e85uJdS7tB0FcKsC/hf_20260419_164352_85e5afad-cee1-486c-99ec-0140a80bc9fe.mp4"
               type="video/mp4"
@@ -787,71 +879,6 @@ export default function CritiquePage() {
 
       <SectionDivider />
 
-      {/* section 4 — dispatch gallery */}
-      <SectionStage id="dispatch" n="03" chip="field dispatch" className="dispatch-section">
-        <div className="container">
-          <div className="dispatch-header reveal">
-            <h2 className="chrome-text">Dispatches from the deep.</h2>
-            <p>
-              Signals the crew has pulled back from the field — student work, charts, context —
-              while mapping the route.
-            </p>
-          </div>
-          <div className="dispatch-grid reveal">
-            <div className="dispatch-card is-wide">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1400&q=80&auto=format&fit=crop"
-                alt="Ocean surface at dawn"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">First sounding.</div>
-                <div className="dispatch-meta">042125 · 0612</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-tall">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1519682577862-22b62b24e493?w=1400&q=80&auto=format&fit=crop"
-                alt="Library stacks"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Reading the current.</div>
-                <div className="dispatch-meta">042125 · 1104</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-square">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=1400&q=80&auto=format&fit=crop"
-                alt="Work desk with documents"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Drafting the log.</div>
-                <div className="dispatch-meta">042125 · 1442</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-square">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1464746133101-a2c3f88e0dd9?w=1400&q=80&auto=format&fit=crop"
-                alt="Compass on map"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Plotting a course.</div>
-                <div className="dispatch-meta">042125 · 1837</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionStage>
-
-      <SectionDivider />
-
       {/* section 5 — from lost to landed */}
       <SectionStage id="log" n="04" chip="navigation log" className="log-section">
         <div className="container">
@@ -1055,37 +1082,6 @@ export default function CritiquePage() {
           <div className="footer-copy">© 2026 nami systems</div>
         </div>
       </footer>
-
-      {/* bottom pill-nav — shows after scroll, magnetic CTA */}
-      <nav className="pill-nav" aria-label="Quick nav" ref={pillNavRef}>
-        <a href="#gap" className="pill-link" onClick={onAnchor}>
-          gap
-        </a>
-        <a href="#crew" className="pill-link" onClick={onAnchor}>
-          crew
-        </a>
-        <a href="#dispatch" className="pill-link" onClick={onAnchor}>
-          dispatch
-        </a>
-        <a href="#log" className="pill-link" onClick={onAnchor}>
-          log
-        </a>
-        <a href="#arch" className="pill-link" onClick={onAnchor}>
-          arch
-        </a>
-        <a href="#dive" className="pill-link" onClick={onAnchor}>
-          dive
-        </a>
-        <button
-          ref={pillCtaRef}
-          className="pill-cta"
-          type="button"
-          aria-label="Begin dive — open the submarine"
-          onClick={diveToOffice}
-        >
-          begin dive →
-        </button>
-      </nav>
     </div>
   );
 }

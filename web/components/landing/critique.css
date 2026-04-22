@@ -5,14 +5,12 @@
    ============================================================ */
 
 /* PP Mondwest — blocky pixel-serif display face, used for every header.
-   Primary source: the woff2 hosted by General Intelligence Company (the same
-   file the user asked us to use). We keep the local .otf as a fallback in case
-   the remote ever 404s or CORS breaks. */
+   Served same-origin from /fonts/ppmondwest-regular.woff2 so we never hit
+   a cross-origin CORS wall or a third-party 404. The file was pulled from
+   generalintelligencecompany.com's CDN (the user's original source). */
 @font-face {
   font-family: 'PP Mondwest';
-  src:
-    url('https://generalintelligencecompany.com/_next/static/media/17330fd087386262-s.p.woff2') format('woff2'),
-    url('/ppmondwest-regular.otf') format('opentype');
+  src: url('/fonts/ppmondwest-regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -107,69 +105,6 @@
   transition: color 220ms var(--ease-out);
 }
 .critique-root .btn-ghost:hover { color: var(--paper); }
-
-/* sonar loader */
-.critique-root .loader {
-  position: fixed; inset: 0; z-index: 1000;
-  background: var(--ink);
-  display: grid; place-items: center;
-  animation: critique-loader-out 0.9s var(--ease-out) 1.6s forwards;
-}
-.critique-root .loader-rings { position: relative; width: 360px; height: 360px; }
-.critique-root .loader-ring {
-  position: absolute; inset: 0;
-  border: 1px solid rgba(16, 185, 129, 0.22);
-  border-radius: 50%;
-  animation: critique-sonar 2.4s var(--ease-out) infinite;
-  opacity: 0;
-}
-.critique-root .loader-ring:nth-child(2) { animation-delay: 0.4s; }
-.critique-root .loader-ring:nth-child(3) { animation-delay: 0.8s; }
-.critique-root .loader-ring:nth-child(4) { animation-delay: 1.2s; }
-.critique-root .loader-sweep {
-  position: absolute; inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    rgba(16,185,129,0.00) 0deg,
-    rgba(16,185,129,0.00) 300deg,
-    rgba(16,185,129,0.35) 358deg,
-    rgba(16,185,129,0.55) 360deg,
-    rgba(16,185,129,0.00) 360deg
-  );
-  animation: critique-sweep 2.5s linear infinite;
-  mask: radial-gradient(circle, transparent 40%, black 41%, black 99%, transparent 100%);
-  -webkit-mask: radial-gradient(circle, transparent 40%, black 41%, black 99%, transparent 100%);
-}
-.critique-root .loader-core {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%,-50%);
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--signal);
-  box-shadow: 0 0 24px rgba(16,185,129,0.6);
-}
-.critique-root .loader-label {
-  position: absolute; left: 50%; top: calc(50% + 28px);
-  transform: translate(-50%,0);
-  font-family: var(--f-mono); font-size: 10px; font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--ghost-60);
-  white-space: nowrap;
-}
-
-@keyframes critique-sonar {
-  0%   { transform: scale(0.18); opacity: 0; }
-  20%  { opacity: 0.75; }
-  100% { transform: scale(1); opacity: 0; }
-}
-@keyframes critique-sweep {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-@keyframes critique-loader-out {
-  0%   { opacity: 1; }
-  100% { opacity: 0; visibility: hidden; pointer-events: none; }
-}
 
 /* nav */
 .critique-root .nav-wrap {
@@ -1127,38 +1062,6 @@
   .critique-root .cta-final-btn { transform: none !important; }
 }
 
-/* A/B toggle — only in critique route */
-.critique-ab-toggle {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 500;
-  display: flex;
-  gap: 2px;
-  padding: 4px;
-  background: rgba(8, 14, 26, 0.9);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 2px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-.critique-ab-toggle a {
-  padding: 8px 14px;
-  border-radius: 2px;
-  color: rgba(255,255,255,0.5);
-  text-decoration: none;
-  transition: all 200ms cubic-bezier(0.215, 0.61, 0.355, 1);
-}
-.critique-ab-toggle a:hover { color: #fff; }
-.critique-ab-toggle a.is-active {
-  background: rgba(255,255,255,0.14);
-  color: #fff;
-}
-
 /* ============================================================
    IRIS PATTERNS — atmospheric scroll-staged cinema
    ============================================================ */
@@ -1663,8 +1566,6 @@
   .critique-root *::before,
   .critique-root *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .critique-root .hero-bg-fallback { animation: none; }
-  .critique-root .loader-ring,
-  .critique-root .loader-sweep,
   .critique-root .crew-dot,
   .critique-root .gap-signal.err .dot,
   .critique-root .chrome-text,

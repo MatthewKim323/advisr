@@ -1,294 +1,104 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const VERTEX_SHADER = `#version 300 es
-in vec2 position;
-void main() {
-    gl_Position = vec4(position, 0.0, 1.0);
-}
-`;
+/**
+ * LoadingScreen — bathysphere dive sequence.
+ *
+ * An ASCII submarine assembles itself row-by-row while a sonar ping climbs
+ * from 0 → 100. The row currently being "welded on" glows brass; earlier
+ * rows settle into a quiet teal. Once the hull is complete the whole
+ * sequence fades out and hands off to the marketing page.
+ *
+ * Design notes:
+ *   - Syne Mono is the display face. It's an unusual, mechanical monospace
+ *     that aligns the ASCII perfectly and looks nothing like the default
+ *     Space-Mono / IBM-Plex "AI loader" feel.
+ *   - No WebGL, no shaders. The whole thing is CSS + a handful of
+ *     requestAnimationFrame ticks — so it actually loads fast instead of
+ *     pretending to.
+ *   - CRT scanlines + vignette give it the bathysphere-console look without
+ *     a single raster asset.
+ */
 
-const BUFFER_A_FRAG = `#version 300 es
-precision highp float;
-uniform vec2 iResolution;
-uniform float iTime;
-uniform sampler2D iChannel0;
-out vec4 fragColor;
+/* Each row is rendered once progress crosses a threshold. The art is
+ * designed so the reveal tells a story: the periscope breaches first, the
+ * tower assembles, then the hull bolts on deck-by-deck, then keel fins
+ * drop, then bubbles fizz at the waterline.
+ *
+ * Rows MUST be strict monospace — every character pads the same grid
+ * column. Escape all backslashes. */
+const SUBMARINE_ROWS: readonly string[] = [
+  '                              ___                           ',
+  '                             |   |                          ',
+  '                             |___|                          ',
+  '                 ____________/   \\_____________             ',
+  '                /  .   .   .       .   .   .    \\           ',
+  '    ___________/                                  \\________ ',
+  '   /                                                       \\',
+  '   |   o      o      o      o      o      o      o         |',
+  '   \\_______________________________________________________/',
+  '       | |                                              | | ',
+  '       \\_/                                              \\_/ ',
+  '    ~   ~   ~   ~    ~    ~   ~   ~    ~   ~   ~   ~   ~   ~',
+];
 
-#define SF 1./min(iResolution.x,iResolution.y)
-#define PI 3.14159265359
-
-mat2 rot(float a){
-    float ca = cos(a);
-    float sa = sin(a);
-    return mat2(ca,-sa,sa,ca);
-}
-void main()
-{    
-    vec2 fragCoord = gl_FragCoord.xy;
-    vec2 uv = (fragCoord - .5*iResolution.xy)/iResolution.y;
-    vec2 ouv = fragCoord/iResolution.xy;
-    
-    vec3 pPoses[6];
-    pPoses[0] = vec3(.25, .25, .05);
-    pPoses[1] = vec3(-.15, .13, .08);
-    pPoses[2] = vec3(.12, -.20, .1);
-    pPoses[3] = vec3(.28, -.30, .13);
-    pPoses[4] = vec3(.05, .3, .18);
-    pPoses[5] = vec3(-.3, -.3, .3);
-    
-    float p = 0.;
-    for(int i=0; i<6; i++){
-        vec3 pd = pPoses[i];
-        p += smoothstep(pd.z, .0, length(uv - pd.xy));
-    }        
-    
-    // Rotation speed calculated to complete 2*PI in exactly 2.5 seconds
-    // Speed = 2*PI / 2.5 = 2.51327
-    float rotationSpeed = (2.0 * PI) / 2.5;
-    vec2 rotUv = uv * rot(iTime * rotationSpeed);
-            
-    float m = smoothstep(.025, 0., abs(rotUv.y)) * smoothstep(0., .1, rotUv.x) * smoothstep(.51, .49, rotUv.x);       
-    
-    vec3 backCol = texture(iChannel0, ouv).rgb*(p >0. ? min(.9+p*.1, 0.99) : .9);
-    
-    vec3 col = mix(backCol, vec3(0.05, 0.45, 0.55), m);
-    
-    fragColor = vec4(col,1.0);
-}
-`;
-
-const IMAGE_FRAG = `#version 300 es
-precision highp float;
-uniform vec2 iResolution;
-uniform float iTime;
-uniform sampler2D iChannel0;
-out vec4 fragColor;
-
-#define SF 1./min(iResolution.x,iResolution.y)
-void main()
-{
-    vec2 fragCoord = gl_FragCoord.xy;
-    vec2 ouv = fragCoord/iResolution.xy;
-    vec2 uv = (fragCoord - .5*iResolution.xy)/iResolution.y;    
-        
-    vec3 activeCol = texture(iChannel0, ouv).rgb;
-    
-    float l = length(uv);
-    
-    float m = 0.;
-    
-    float i = .15*round(l/.15);
-    m += smoothstep(SF*2., 0., abs(i-l));            
-    m += smoothstep(SF, 0., abs(SF-uv.x));   
-    m += smoothstep(SF, 0., abs(SF-uv.y));    
-    
-    vec3 col = activeCol + vec3(0.05, 0.35, 0.45) * m;
-    col *= step(l, .51);
-    
-    fragColor = vec4(col, 1.);
-}
-`;
+const BUILD_MS = 2100;
+const HOLD_MS = 260;
+const FADE_MS = 520;
 
 interface LoadingScreenProps {
   onComplete: () => void;
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
 
+  // Drive 0 → 100 over BUILD_MS with an ease-out curve so the submarine
+  // snaps together early and settles into 100 instead of a linear crawl.
   useEffect(() => {
-    // We want 1 rotation to take exactly 2.5 seconds
-    // Fade lasts 1 second, so start fade at 1.5 seconds
-    const fadeTimer = setTimeout(() => {
-      setIsVisible(false);
-    }, 1500);
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / BUILD_MS);
+      const eased = 1 - Math.pow(1 - t, 2.2);
+      setProgress(Math.round(eased * 100));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
 
-    const completeTimer = setTimeout(() => {
-      onComplete();
-    }, 2500); // 1.5s delay + 1s fade = 2.5s total
+    const fadeT = window.setTimeout(
+      () => setIsVisible(false),
+      BUILD_MS + HOLD_MS,
+    );
+    const doneT = window.setTimeout(
+      () => onComplete(),
+      BUILD_MS + HOLD_MS + FADE_MS,
+    );
 
     return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(completeTimer);
+      cancelAnimationFrame(raf);
+      window.clearTimeout(fadeT);
+      window.clearTimeout(doneT);
     };
   }, [onComplete]);
 
-  useEffect(() => {
-    // Remove the early return so rendering continues during exit transition
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const revealedCount = Math.min(
+    SUBMARINE_ROWS.length,
+    Math.floor((progress / 100) * SUBMARINE_ROWS.length) +
+      (progress >= 100 ? 0 : 1),
+  );
 
-    const gl = canvas.getContext('webgl2');
-    if (!gl) {
-      console.error('WebGL 2.0 not supported');
-      return;
-    }
+  // Percentage + fathom readout are derived live.
+  const pct = String(progress).padStart(3, '0');
+  const fathoms = String(Math.round((progress / 100) * 2400)).padStart(4, '0');
 
-    const compileShader = (source: string, type: number) => {
-      const shader = gl.createShader(type)!;
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error(gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-      }
-      return shader;
-    };
+  // Block-style progress bar made of unicode blocks — same monospace grid
+  // as the submarine so everything sits on one rail.
+  const bar = useMemo(() => buildBar(progress, 36), [progress]);
 
-    const createProgram = (vsSource: string, fsSource: string) => {
-      const vs = compileShader(vsSource, gl.VERTEX_SHADER);
-      const fs = compileShader(fsSource, gl.FRAGMENT_SHADER);
-      if (!vs || !fs) return null;
-
-      const program = gl.createProgram()!;
-      gl.attachShader(program, vs);
-      gl.attachShader(program, fs);
-      gl.linkProgram(program);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error(gl.getProgramInfoLog(program));
-        return null;
-      }
-      return program;
-    };
-
-    const bufferAProgram = createProgram(VERTEX_SHADER, BUFFER_A_FRAG);
-    const imageProgram = createProgram(VERTEX_SHADER, IMAGE_FRAG);
-
-    if (!bufferAProgram || !imageProgram) return;
-
-    const positionAttributeA = gl.getAttribLocation(bufferAProgram, 'position');
-    const positionAttributeI = gl.getAttribLocation(imageProgram, 'position');
-
-    const positions = new Float32Array([
-      -1, -1,
-       1, -1,
-      -1,  1,
-      -1,  1,
-       1, -1,
-       1,  1,
-    ]);
-
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-
-    // Framebuffer setup for Buffer A ping-pong
-    const createTexture = (width: number, height: number) => {
-      const tex = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      return tex;
-    };
-
-    const createFramebuffer = (texture: WebGLTexture) => {
-      const fbo = gl.createFramebuffer();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-      return fbo;
-    };
-
-    let width = canvas.clientWidth;
-    let height = canvas.clientHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    let texA1 = createTexture(width, height)!;
-    let texA2 = createTexture(width, height)!;
-    let fboA1 = createFramebuffer(texA1)!;
-    let fboA2 = createFramebuffer(texA2)!;
-
-    let currentTexture = texA1;
-    let previousTexture = texA2;
-    let currentFbo = fboA1;
-
-    let animationId: number;
-    let startTime = performance.now();
-
-    const render = (time: number) => {
-      const elapsed = (time - startTime) / 1000;
-
-      // Handle Resize
-      if (canvas.clientWidth !== width || canvas.clientHeight !== height) {
-        width = canvas.clientWidth;
-        height = canvas.clientHeight;
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Re-create textures/FBOs on resize (oversimplified but functional)
-        gl.deleteTexture(texA1);
-        gl.deleteTexture(texA2);
-        gl.deleteFramebuffer(fboA1);
-        gl.deleteFramebuffer(fboA2);
-        
-        texA1 = createTexture(width, height)!;
-        texA2 = createTexture(width, height)!;
-        fboA1 = createFramebuffer(texA1)!;
-        fboA2 = createFramebuffer(texA2)!;
-        
-        currentTexture = texA1;
-        previousTexture = texA2;
-        currentFbo = fboA1;
-      }
-
-      gl.viewport(0, 0, width, height);
-
-      // Pass 1: Buffer A
-      gl.useProgram(bufferAProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, currentFbo);
-      gl.uniform2f(gl.getUniformLocation(bufferAProgram, 'iResolution'), width, height);
-      gl.uniform1f(gl.getUniformLocation(bufferAProgram, 'iTime'), elapsed);
-      
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, previousTexture);
-      gl.uniform1i(gl.getUniformLocation(bufferAProgram, 'iChannel0'), 0);
-
-      gl.enableVertexAttribArray(positionAttributeA);
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.vertexAttribPointer(positionAttributeA, 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      // Pass 2: Image
-      gl.useProgram(imageProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.uniform2f(gl.getUniformLocation(imageProgram, 'iResolution'), width, height);
-      gl.uniform1f(gl.getUniformLocation(imageProgram, 'iTime'), elapsed);
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, currentTexture);
-      gl.uniform1i(gl.getUniformLocation(imageProgram, 'iChannel0'), 0);
-
-      gl.enableVertexAttribArray(positionAttributeI);
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.vertexAttribPointer(positionAttributeI, 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      // Swap
-      [currentTexture, previousTexture] = [previousTexture, currentTexture];
-      currentFbo = (currentFbo === fboA1) ? fboA2 : fboA1;
-
-      animationId = requestAnimationFrame(render);
-    };
-
-    animationId = requestAnimationFrame(render);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      gl.deleteProgram(bufferAProgram);
-      gl.deleteProgram(imageProgram);
-      gl.deleteBuffer(positionBuffer);
-      gl.deleteTexture(texA1);
-      gl.deleteTexture(texA2);
-      gl.deleteFramebuffer(fboA1);
-      gl.deleteFramebuffer(fboA2);
-    };
-  }, [onComplete]);
+  // Boot-log lines cycle based on progress so there's something to read.
+  const bootLine = pickBootLine(progress);
 
   return (
     <AnimatePresence>
@@ -296,28 +106,240 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onComplete }) => {
         <motion.div
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: 'easeInOut' }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: '#080E1A',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden'
-          }}
+          transition={{ duration: FADE_MS / 1000, ease: 'easeInOut' }}
+          style={styles.root}
+          role="status"
+          aria-label={`Boot sequence ${progress} percent`}
         >
-          <canvas
-            ref={canvasRef}
-            style={{
-              width: '100vw',
-              height: '100vh',
-              display: 'block'
-            }}
-          />
+          <div style={styles.vignette} aria-hidden />
+          <div style={styles.scanlines} aria-hidden />
+
+          <div style={styles.stage}>
+            <div style={styles.marque}>
+              <span style={styles.marqueDot} />
+              BATHYSPHERE&nbsp;·&nbsp;DIVE&nbsp;SEQUENCE
+              <span style={styles.marqueDot} />
+            </div>
+
+            <pre style={styles.art} aria-hidden>
+              {SUBMARINE_ROWS.map((line, i) => {
+                const visible = i < revealedCount;
+                const isLatest = i === revealedCount - 1 && progress < 100;
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      opacity: visible ? 1 : 0,
+                      color: isLatest ? '#e6a559' : 'rgba(173,226,220,0.82)',
+                      textShadow: isLatest
+                        ? '0 0 14px rgba(230,165,89,0.65), 0 0 2px rgba(230,165,89,0.9)'
+                        : '0 0 10px rgba(77,216,211,0.18)',
+                      transition:
+                        'opacity 220ms ease-out, color 320ms ease, text-shadow 320ms ease',
+                      whiteSpace: 'pre',
+                    }}
+                  >
+                    {line || ' '}
+                  </div>
+                );
+              })}
+            </pre>
+
+            <div style={styles.readout}>
+              <div style={styles.readoutRow}>
+                <span style={styles.label}>SONAR</span>
+                <span style={styles.bar}>{bar}</span>
+                <span style={styles.pct}>{pct}%</span>
+              </div>
+              <div style={styles.readoutMeta}>
+                <span>{fathoms}&nbsp;fm</span>
+                <span style={styles.cursorLine}>
+                  <span style={styles.arrow}>›</span>
+                  {bootLine}
+                  <span style={styles.caret}>▊</span>
+                </span>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 };
+
+function buildBar(progress: number, width: number): string {
+  const filled = Math.round((progress / 100) * width);
+  return '█'.repeat(filled) + '░'.repeat(width - filled);
+}
+
+function pickBootLine(progress: number): string {
+  if (progress < 8) return 'pressurising hull · bolts sealed';
+  if (progress < 22) return 'periscope · aligned';
+  if (progress < 38) return 'conning tower · online';
+  if (progress < 55) return 'deck plates · torqued';
+  if (progress < 72) return 'portholes · lit';
+  if (progress < 88) return 'ballast · flooded';
+  if (progress < 100) return 'keel fins · deployed';
+  return 'dive · clear';
+}
+
+const SYNE: React.CSSProperties = {
+  fontFamily:
+    '"Syne Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
+  fontFeatureSettings: '"ss01" on, "ss02" on',
+  letterSpacing: 0,
+};
+
+const styles: Record<string, React.CSSProperties> = {
+  root: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    background:
+      'radial-gradient(120% 80% at 50% 40%, #0b1b2e 0%, #05101c 55%, #03080f 100%)',
+    color: 'rgba(173,226,220,0.82)',
+  },
+  vignette: {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    background:
+      'radial-gradient(60% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%)',
+  },
+  scanlines: {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    mixBlendMode: 'overlay',
+    background:
+      'repeating-linear-gradient(0deg, rgba(77,216,211,0.035) 0px, rgba(77,216,211,0.035) 1px, transparent 1px, transparent 3px)',
+    animation: 'nami-scan 6s linear infinite',
+  },
+  stage: {
+    ...SYNE,
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 28,
+    padding: '48px 24px',
+  },
+  marque: {
+    ...SYNE,
+    fontSize: 11,
+    letterSpacing: '0.42em',
+    color: '#e6a559',
+    textTransform: 'uppercase',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    textShadow: '0 0 12px rgba(230,165,89,0.4)',
+  },
+  marqueDot: {
+    display: 'inline-block',
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: '#e6a559',
+    boxShadow: '0 0 10px rgba(230,165,89,0.9)',
+    animation: 'nami-pulse 1.4s ease-in-out infinite',
+  },
+  art: {
+    ...SYNE,
+    margin: 0,
+    fontSize: 'clamp(10px, 1.1vw, 15px)',
+    lineHeight: 1.15,
+    whiteSpace: 'pre',
+    tabSize: 1,
+  },
+  readout: {
+    ...SYNE,
+    marginTop: 4,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    minWidth: 520,
+    maxWidth: '90vw',
+  },
+  readoutRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    fontSize: 13,
+    letterSpacing: '0.08em',
+  },
+  label: {
+    color: '#e6a559',
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+    fontSize: 11,
+  },
+  bar: {
+    color: '#4dd8d3',
+    textShadow: '0 0 8px rgba(77,216,211,0.45)',
+    fontSize: 13,
+    flex: 1,
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+  },
+  pct: {
+    color: '#f4e9d4',
+    fontVariantNumeric: 'tabular-nums',
+    fontSize: 13,
+    minWidth: 56,
+    textAlign: 'right',
+  },
+  readoutMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 18,
+    fontSize: 11,
+    letterSpacing: '0.22em',
+    textTransform: 'uppercase',
+    color: 'rgba(173,226,220,0.55)',
+  },
+  cursorLine: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    color: 'rgba(173,226,220,0.72)',
+  },
+  arrow: {
+    color: '#e6a559',
+    fontSize: 13,
+  },
+  caret: {
+    display: 'inline-block',
+    color: '#e6a559',
+    animation: 'nami-caret 0.9s steps(1) infinite',
+    marginLeft: 2,
+  },
+};
+
+// Keyframes — injected once at module load so the styled div can
+// animate without pulling in another CSS layer.
+if (typeof document !== 'undefined' && !document.getElementById('nami-loader-kf')) {
+  const style = document.createElement('style');
+  style.id = 'nami-loader-kf';
+  style.textContent = `
+    @keyframes nami-pulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.8); }
+      50%      { opacity: 1;    transform: scale(1.15); }
+    }
+    @keyframes nami-caret {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    @keyframes nami-scan {
+      0%   { background-position: 0 0; }
+      100% { background-position: 0 24px; }
+    }
+  `;
+  document.head.appendChild(style);
+}

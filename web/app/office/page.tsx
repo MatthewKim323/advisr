@@ -41,7 +41,7 @@ export default function OfficePage() {
 
   return (
     <main
-      className="relative flex min-h-screen flex-col"
+      className="relative flex h-screen flex-col overflow-hidden"
       style={{ background: "var(--abyss-deep, #071521)" }}
     >
       <OfficeHUD
@@ -50,12 +50,17 @@ export default function OfficePage() {
         manifestToggle={<ProposalDrawerToggle />}
       />
 
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[1fr_420px]">
-        <div className="relative overflow-hidden">
+      {/* Single-viewport split: canvas (+ overlays) on the left, chat
+          on the right. `min-h-0` on the grid and its cells is critical —
+          without it, a flex child grows to its natural content height
+          (the pixel canvas's aspect-scaled size) and pushes the page
+          past 100vh, forcing the scroll the user called out. */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_360px] xl:grid-cols-[1fr_420px]">
+        <div className="relative min-h-0 overflow-hidden">
           <Canvas />
           <div
             className="pointer-events-none absolute inset-x-0 z-20 flex justify-center"
-            style={{ top: 24 }}
+            style={{ top: 16 }}
           >
             <SearchBar studentId={studentId} />
           </div>
@@ -64,7 +69,9 @@ export default function OfficePage() {
           <ProposalDrawer studentId={studentId} />
           <LocalIndexBootstrap studentId={studentId} />
         </div>
-        <ChatPanel />
+        <div className="min-h-0">
+          <ChatPanel />
+        </div>
       </div>
     </main>
   );

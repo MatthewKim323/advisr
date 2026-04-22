@@ -90,7 +90,7 @@ export default function ChatPanel() {
 
   return (
     <aside
-      className="relative flex h-screen flex-col border-l"
+      className="relative flex h-full min-h-0 flex-col border-l"
       style={{
         borderColor: "rgba(77,216,211,0.15)",
         background:

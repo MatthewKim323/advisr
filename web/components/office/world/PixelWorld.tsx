@@ -247,15 +247,21 @@ export default function PixelWorld() {
   const canvasH = (H_PX + PAD * 2) * RENDER_SCALE;
 
   /* Responsive scaling: the canvas keeps its native pixel-perfect buffer
-   * (no loss of detail), and CSS stretches it to fit the parent container
-   * while preserving aspect ratio. `image-rendering: pixelated` keeps the
-   * downscale crisp (nearest-neighbor) so edges stay sharp. */
+   * (no loss of detail), and CSS letterboxes it to fit whichever dimension
+   * of the parent is the binding constraint (width OR height). Before,
+   * we only capped width, so a tall parent with a wide slot would push
+   * the canvas past the viewport and force a page-scroll. Now both
+   * dimensions are capped and the aspect-ratio CSS keeps the ratio.
+   * `image-rendering: pixelated` keeps the downscale crisp
+   * (nearest-neighbor) so edges stay sharp. */
   return (
     <div
-      className="relative mx-auto w-full"
+      className="relative mx-auto"
       style={{
-        maxWidth:    canvasW,
         aspectRatio: `${canvasW} / ${canvasH}`,
+        width:     "100%",
+        maxWidth:  canvasW,
+        maxHeight: "100%",
       }}
     >
       <canvas

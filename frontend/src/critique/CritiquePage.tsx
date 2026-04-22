@@ -194,8 +194,6 @@ export default function CritiquePage() {
   const gaugeLabelRef = useRef<HTMLSpanElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const heroCursorRef = useRef<HTMLDivElement | null>(null);
-  const pillNavRef = useRef<HTMLElement | null>(null);
-  const pillCtaRef = useRef<HTMLButtonElement | null>(null);
 
   // auto-cycling log step highlight — stolen from iris's Thesis auto-advance
   const [activeStep, setActiveStep] = useState(0);
@@ -244,7 +242,6 @@ export default function CritiquePage() {
     const gauge = gaugeRef.current;
     const gaugeFill = gaugeFillRef.current;
     const gaugeLabel = gaugeLabelRef.current;
-    const pillNav = pillNavRef.current;
 
     let ticking = false;
     const onScroll = () => {
@@ -263,8 +260,6 @@ export default function CritiquePage() {
           const fathoms = Math.round(p * 2400);
           gaugeLabel.textContent = `${String(fathoms).padStart(4, '0')}\u00A0fm`;
         }
-
-        if (pillNav) pillNav.classList.toggle('is-visible', y > 420);
 
         ticking = false;
       });
@@ -377,14 +372,6 @@ export default function CritiquePage() {
       {/* film-grain overlay — fixed across viewport */}
       <NoiseOverlay />
 
-      {/* A/B toggle */}
-      <div className="critique-ab-toggle" role="navigation" aria-label="A/B toggle">
-        <a href="/leo">leo</a>
-        <a href="/" className="is-active">
-          nami
-        </a>
-      </div>
-
       {/* fixed depth gauge — scroll-linked "fathoms" readout */}
       <div className="depth-gauge" ref={gaugeRef} aria-hidden="true">
         <span className="depth-gauge-label">Depth</span>
@@ -399,19 +386,6 @@ export default function CritiquePage() {
         <span className="depth-gauge-label" ref={gaugeLabelRef}>
           0000&nbsp;fm
         </span>
-      </div>
-
-      {/* sonar loading screen */}
-      <div className="loader" aria-hidden="true">
-        <div className="loader-rings">
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-ring" />
-          <div className="loader-sweep" />
-          <div className="loader-core" />
-          <div className="loader-label">nami · deploying crew</div>
-        </div>
       </div>
 
       {/* nav */}
@@ -430,9 +404,6 @@ export default function CritiquePage() {
               </a>
               <a href="#crew" onClick={onAnchor}>
                 the crew
-              </a>
-              <a href="#dispatch" onClick={onAnchor}>
-                dispatch
               </a>
               <a href="#log" onClick={onAnchor}>
                 log
@@ -780,71 +751,6 @@ export default function CritiquePage() {
 
       <SectionDivider />
 
-      {/* section 4 — dispatch gallery */}
-      <SectionStage id="dispatch" n="03" chip="field dispatch" className="dispatch-section">
-        <div className="container">
-          <div className="dispatch-header reveal">
-            <h2 className="chrome-text">Dispatches from the deep.</h2>
-            <p>
-              Signals the crew has pulled back from the field — student work, charts, context —
-              while mapping the route.
-            </p>
-          </div>
-          <div className="dispatch-grid reveal">
-            <div className="dispatch-card is-wide">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=1400&q=80&auto=format&fit=crop"
-                alt="Ocean surface at dawn"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">First sounding.</div>
-                <div className="dispatch-meta">042125 · 0612</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-tall">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1519682577862-22b62b24e493?w=1400&q=80&auto=format&fit=crop"
-                alt="Library stacks"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Reading the current.</div>
-                <div className="dispatch-meta">042125 · 1104</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-square">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=1400&q=80&auto=format&fit=crop"
-                alt="Work desk with documents"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Drafting the log.</div>
-                <div className="dispatch-meta">042125 · 1442</div>
-              </div>
-            </div>
-            <div className="dispatch-card is-square">
-              <img
-                className="dispatch-img"
-                src="https://images.unsplash.com/photo-1464746133101-a2c3f88e0dd9?w=1400&q=80&auto=format&fit=crop"
-                alt="Compass on map"
-                loading="lazy"
-              />
-              <div className="dispatch-caption">
-                <div className="dispatch-title">Plotting a course.</div>
-                <div className="dispatch-meta">042125 · 1837</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionStage>
-
-      <SectionDivider />
-
       {/* section 5 — from lost to landed */}
       <SectionStage id="log" n="04" chip="navigation log" className="log-section">
         <div className="container">
@@ -1048,37 +954,6 @@ export default function CritiquePage() {
           <div className="footer-copy">© 2026 nami systems</div>
         </div>
       </footer>
-
-      {/* bottom pill-nav — shows after scroll, magnetic CTA */}
-      <nav className="pill-nav" aria-label="Quick nav" ref={pillNavRef}>
-        <a href="#gap" className="pill-link" onClick={onAnchor}>
-          gap
-        </a>
-        <a href="#crew" className="pill-link" onClick={onAnchor}>
-          crew
-        </a>
-        <a href="#dispatch" className="pill-link" onClick={onAnchor}>
-          dispatch
-        </a>
-        <a href="#log" className="pill-link" onClick={onAnchor}>
-          log
-        </a>
-        <a href="#arch" className="pill-link" onClick={onAnchor}>
-          arch
-        </a>
-        <a href="#dive" className="pill-link" onClick={onAnchor}>
-          dive
-        </a>
-        <button
-          ref={pillCtaRef}
-          className="pill-cta"
-          type="button"
-          aria-label="Begin dive — open the submarine"
-          onClick={diveToOffice}
-        >
-          begin dive →
-        </button>
-      </nav>
     </div>
   );
 }

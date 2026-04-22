@@ -13,7 +13,7 @@ import PixelWorld from "./world/PixelWorld";
 export default function Canvas() {
   return (
     <div
-      className="relative isolate flex w-full items-center justify-center overflow-hidden py-10"
+      className="relative isolate flex h-full w-full items-center justify-center overflow-hidden px-4 py-3"
       style={{
         // Placeholder — an ocean shader will live here eventually.
         background: "#071521",
