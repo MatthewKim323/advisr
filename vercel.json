@@ -1,18 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
   "buildCommand": "cd web && npm install && npm run build",
+  "installCommand": "cd web && npm install",
   "devCommand": "cd web && npm run dev",
   "outputDirectory": "web/.next",
-  "installCommand": "cd web && npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "NEXT_PUBLIC_SUPABASE_URL": "@nami_supabase_url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@nami_supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@nami_supabase_service_role",
-    "ANTHROPIC_API_KEY": "@nami_anthropic_api_key",
-    "HUMAN_DELTA_API_KEY": "@nami_hd_api_key",
-    "DEMO_MODE": "true",
-    "DEMO_STUDENT_ID": "00000000-0000-4000-8000-000000000001"
-  }
+  "regions": ["iad1"]
 }

@@ -33,6 +33,9 @@ import type { ArchivistWorkerResult } from "@/lib/agents/archivist/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Hobby defaults to 10s; archivist + chunking on a multi-file
+// batch can easily overshoot. 60s is the Hobby ceiling and Pro's default.
+export const maxDuration = 60;
 
 interface UploadedFile {
   id: string;
