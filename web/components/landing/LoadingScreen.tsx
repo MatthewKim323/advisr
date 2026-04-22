@@ -22,26 +22,51 @@ import { motion, AnimatePresence } from "motion/react";
  *      scramble age independent of when React happens to rerender
  */
 
+/* Submarine silhouette — drawn iris-flower style with tonal shading.
+ *
+ * Density ladder (darkest → lightest):
+ *   %   dense hull plating
+ *   ;   medium plating / seam shadow
+ *   :   mid tone
+ *   ,   sparse detail / bottom curve
+ *   '   highlight / top edge
+ *   .   sparse highlight / sparkle
+ *
+ * Structural chars:
+ *   |  periscope rod
+ *   _ - ' `  hull outline + deck seam
+ *   ( o )    portholes
+ *   ~        water
+ *
+ * Every row is 62 columns wide. Keep alignment perfect or the whole
+ * rendering falls apart (monospace, pre-wrap). */
 const SUBMARINE_ROWS: readonly string[] = [
-  "                              ___                           ",
-  "                             |   |                          ",
-  "                             |___|                          ",
-  "                 ____________/   \\_____________             ",
-  "                /  .   .   .       .   .   .    \\           ",
-  "    ___________/                                  \\________ ",
-  "   /                                                       \\",
-  "   |   o      o      o      o      o      o      o         |",
-  "   \\_______________________________________________________/",
-  "       | |                                              | | ",
-  "       \\_/                                              \\_/ ",
-  "    ~   ~   ~   ~    ~    ~   ~   ~    ~   ~   ~   ~   ~   ~",
+  "                              .                               ",
+  "                              |                               ",
+  "                             _|_                              ",
+  "                          .;;;;;;;.                           ",
+  "                        .;;;;;|;;;;;.                         ",
+  "                     .:;'     |     `;:.                      ",
+  "                  .:;'        |        `;:.                   ",
+  "             __,;;'___________|___________`;;,__              ",
+  "        .,;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%;,.        ",
+  "     ,;%%%%%%;;;;;%%%%%;;;;;%%%%%;;;;;%%%%%;;;;;%%%%%%%;,     ",
+  "   ,%%%%%  .--.   .--.   .--.   .--.   .--.   .--.  %%%%%,    ",
+  "  :%%%%%% ( oo ) ( oo ) ( oo ) ( oo ) ( oo ) ( oo ) %%%%%%:   ",
+  "   `%%%%%  `--'   `--'   `--'   `--'   `--'   `--'  %%%%%`    ",
+  "     ';%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%;'    ",
+  "        `';:,%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%,:;'`      ",
+  "            ``''---...._______________....---''``             ",
+  "                                                              ",
+  "    ~     ~      ~     ~      ~     ~     ~     ~    ~    ~   ",
+  "  ~     ~     ~     ~      ~     ~     ~     ~    ~     ~     ",
 ];
 
 /* Timing ──────────────────────────────────────────────── */
-const BUILD_MS = 3800;
-const HOLD_MS = 900;
-const FADE_MS = 700;
-const SCRAMBLE_MS = 460;
+const BUILD_MS = 4200;
+const HOLD_MS = 1200;
+const FADE_MS = 800;
+const SCRAMBLE_MS = 500;
 
 /* Noise alphabet for the scramble phase. Keep it dense so we never
  * see the same symbol flash twice in a frame (feels glitchy vs. noisy). */
