@@ -36,6 +36,15 @@ web/lib/browser/.cache/
 # Private strategy doc — local only
 PLAN.md
 
+# Cursor agent plans + local scratch — never ship
+.cursor/plans/
+.cursor/skills/
+.cursor/agent-transcripts/
+.cursor/tmp/
+
+# Vercel CLI linkage (local, contains project IDs) — but keep vercel.json tracked
+.vercel/
+
 # Full Donarg / Kenney source trees (optional local copies — use web/scripts/sync-sprites.sh)
 Office Tileset/
 kenney_rpg-urban-pack/

@@ -329,20 +329,34 @@ async function searchStudentChunks(args: {
   const q = args.query.trim();
   if (!q) return [];
 
-  // Use ILIKE for literal-match. Robust without FTS config.
-  const { data, error } = await supabase
-    .from("chunks")
-    .select(
-      "id, source_file_id, source_kind, text, offset_start, offset_end, source_files!inner(student_id, kind, filename)",
-    )
-    .ilike("text", `%${q}%`)
-    .eq("source_files.student_id", args.studentId)
-    .limit(args.topK);
+  // Tokenize the query. Dean routinely sends phrases like
+  //   "GPA grade point average cumulative weighted unweighted transcript"
+  // which will never literally appear in a single chunk, so a whole-phrase
+  // ILIKE returns zero and the caller falls back to the world library
+  // (→ Wikipedia). Splitting into tokens and OR-ing ILIKEs recovers the
+  // obvious hits without needing Postgres FTS set up.
+  const STOPWORDS = new Set([
+    "the", "a", "an", "and", "or", "of", "to", "in", "on", "at", "as", "is",
+    "it", "for", "by", "with", "my", "me", "i", "you", "we", "our", "be",
+    "was", "are", "what", "whats", "who", "when", "where", "why", "how",
+    "do", "does", "did", "have", "has", "had", "can", "could", "would",
+    "should", "if", "then", "that", "this", "these", "those", "from",
+    "about", "into", "over", "under", "any", "all", "some", "not", "no",
+  ]);
 
-  if (error) {
-    console.warn("[searchStudentChunks] error:", error.message);
-    return [];
-  }
+  const tokens = Array.from(
+    new Set(
+      q
+        .toLowerCase()
+        .split(/[\s,.;:!?()[\]{}"'`]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2 && !STOPWORDS.has(t))
+        // Strip anything that could break PostgREST's or() expression.
+        .map((t) => t.replace(/[,()%*]/g, "")),
+    ),
+  ).filter(Boolean);
+
+  if (tokens.length === 0) return [];
 
   type Row = {
     id: string;
@@ -354,29 +368,63 @@ async function searchStudentChunks(args: {
     source_files: { filename: string | null } | null;
   };
 
-  return (data as unknown as Row[]).map((r) => ({
+  // PostgREST or()-expression: text.ilike.%tok1%,text.ilike.%tok2%,...
+  // We overfetch (topK × 3) so we have room to re-rank by token coverage
+  // before trimming.
+  const orExpr = tokens.map((t) => `text.ilike.%${t}%`).join(",");
+  const { data, error } = await supabase
+    .from("chunks")
+    .select(
+      "id, source_file_id, source_kind, text, offset_start, offset_end, source_files!inner(student_id, kind, filename)",
+    )
+    .or(orExpr)
+    .eq("source_files.student_id", args.studentId)
+    .limit(Math.max(args.topK * 3, 24));
+
+  if (error) {
+    console.warn("[searchStudentChunks] error:", error.message);
+    return [];
+  }
+
+  const rows = (data as unknown as Row[]) ?? [];
+
+  // Re-rank by how many of the query tokens actually appear in each chunk,
+  // break ties by total token-hit density. Chunks that match more query
+  // terms bubble to the top; single-token hits still surface but rank low.
+  const scored = rows
+    .map((r) => {
+      const lower = r.text.toLowerCase();
+      let coverage = 0;
+      let density = 0;
+      for (const t of tokens) {
+        let idx = 0;
+        let hits = 0;
+        while ((idx = lower.indexOf(t, idx)) !== -1) {
+          hits++;
+          idx += t.length;
+        }
+        if (hits > 0) coverage++;
+        density += hits;
+      }
+      const score =
+        coverage / tokens.length + Math.min(0.3, density / (tokens.length * 10));
+      return { r, coverage, score };
+    })
+    .filter((s) => s.coverage > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, args.topK);
+
+  return scored.map(({ r, score }) => ({
     chunkId: r.id,
     sourceFileId: r.source_file_id,
     sourceFilename: r.source_files?.filename ?? undefined,
     scope: "student" as const,
     sourceKind: r.source_kind,
     text: r.text,
-    score: scoreMatch(r.text, q),
+    score: Math.min(1, score),
     offsetStart: r.offset_start ?? undefined,
     offsetEnd: r.offset_end ?? undefined,
   }));
-}
-
-function scoreMatch(text: string, q: string): number {
-  const lower = text.toLowerCase();
-  const ql = q.toLowerCase();
-  let n = 0;
-  let idx = 0;
-  while ((idx = lower.indexOf(ql, idx)) !== -1) {
-    n++;
-    idx += ql.length;
-  }
-  return Math.min(1, n / 3);
 }
 
 function inferWorldSourceKind(h: LibraryHit): SourceKind {

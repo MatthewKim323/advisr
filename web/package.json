@@ -27,7 +27,8 @@
     "seed:dry": "tsx scripts/seed-maria.mts -- --dry",
     "seed:reset": "tsx scripts/seed-maria.mts -- --reset",
     "bootstrap": "tsx scripts/bootstrap.mts",
-    "demo:prepare": "tsx scripts/demo-prepare.mts"
+    "demo:prepare": "tsx scripts/demo-prepare.mts",
+    "sprites:sync": "bash scripts/sync-sprites.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
@@ -39,6 +40,7 @@
     "ai": "^6.0.168",
     "drizzle-orm": "^0.38.4",
     "humandelta": "^0.1.1",
+    "motion": "^12.38.0",
     "next": "^15.0.0",
     "pg": "^8.13.1",
     "react": "^19.0.0",

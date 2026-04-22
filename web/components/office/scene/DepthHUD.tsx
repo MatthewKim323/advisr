@@ -114,10 +114,10 @@ export default function DepthHUD({ crewBadge }: { crewBadge?: ReactNode }) {
  * Nautical metaphor: ascending = leaving the deep = back to the marketing
  * "surface." Brass-framed pill with a small ascending-arrow pixel icon and
  * a trailing bubble on hover. Respects NEXT_PUBLIC_LANDING_URL; falls back
- * to Vite's dev default.
+ * to same-origin `/` (marketing lives in this Next app).
  */
 function SurfaceButton() {
-  const href = process.env.NEXT_PUBLIC_LANDING_URL || "http://localhost:5173";
+  const href = process.env.NEXT_PUBLIC_LANDING_URL || "/";
   return (
     <a
       href={href}

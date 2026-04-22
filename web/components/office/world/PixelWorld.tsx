@@ -44,6 +44,10 @@ import {
   type Facing,
 } from "./assets";
 import {
+  createPlaceholderCharsImage,
+  createPlaceholderOfficeImage,
+} from "./placeholder-atlases";
+import {
   DECOR,
   GRID_H,
   GRID_W,
@@ -104,6 +108,15 @@ export default function PixelWorld() {
     chars:  null,
   });
 
+  /**
+   * Donarg/Kenney blobs are gitignored — when missing we draw procedural
+   * placeholder atlases so the hull still has pixels. Message explains the fallback.
+   */
+  const [spriteBanner, setSpriteBanner] = useState<{
+    text: string;
+    kind: "info" | "error";
+  } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     const load = (src: string) =>
@@ -111,16 +124,44 @@ export default function PixelWorld() {
         const img = new Image();
         img.decoding = "async";
         img.onload = () => resolve(img);
-        img.onerror = reject;
+        img.onerror = () =>
+          reject(new Error(`failed to load ${src} — copy PNGs per web/public/sprites/README.md`));
         img.src = src;
       });
-    (async () => {
-      const [o, c] = await Promise.all([load(SHEET_OFFICE), load(SHEET_CHARS)]);
-      if (cancelled) return;
-      sheets.current.office = { image: o, ready: true };
-      sheets.current.chars  = { image: c, ready: true };
+    void (async () => {
+      try {
+        const [o, c] = await Promise.all([load(SHEET_OFFICE), load(SHEET_CHARS)]);
+        if (cancelled) return;
+        sheets.current.office = { image: o, ready: true };
+        sheets.current.chars = { image: c, ready: true };
+        setSpriteBanner(null);
+      } catch (e) {
+        if (cancelled) return;
+        console.warn("[PixelWorld] Vendor atlases not found — procedural placeholders.", e);
+        try {
+          const [o, c] = await Promise.all([
+            createPlaceholderOfficeImage(),
+            createPlaceholderCharsImage(),
+          ]);
+          if (cancelled) return;
+          sheets.current.office = { image: o, ready: true };
+          sheets.current.chars = { image: c, ready: true };
+          setSpriteBanner({
+            kind: "info",
+            text: "Placeholder pixel art (clone has no Donarg/Kenney files). Drop PNGs into web/public/sprites/ — see README there — for real tilesets.",
+          });
+        } catch (e2) {
+          console.error("[PixelWorld] Placeholder atlas generation failed:", e2);
+          setSpriteBanner({
+            kind: "error",
+            text: "Could not load or generate sprites. Check web/public/sprites/README.md.",
+          });
+        }
+      }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -224,9 +265,38 @@ export default function PixelWorld() {
         className="block h-full w-full"
         style={{ imageRendering: "pixelated" }}
       />
+      {spriteBanner && (
+        <div
+          className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 rounded-sm border px-3 py-2"
+          style={{
+            borderColor:
+              spriteBanner.kind === "error"
+                ? "var(--coral, #ff7557)"
+                : "var(--kelp, #5ea687)",
+            background: "rgba(8,14,26,0.92)",
+            color: "var(--pearl, #e8f1ea)",
+            fontFamily: "var(--font-hud, monospace)",
+            fontSize: 13,
+            lineHeight: 1.45,
+          }}
+          role={spriteBanner.kind === "error" ? "alert" : "status"}
+        >
+          <span
+            style={{
+              color:
+                spriteBanner.kind === "error"
+                  ? "var(--coral, #ff7557)"
+                  : "var(--brass, #e6a559)",
+            }}
+          >
+            {spriteBanner.kind === "error" ? "SPRITES — " : "ART — "}
+          </span>
+          {spriteBanner.text}
+        </div>
+      )}
       <StationHotspots states={liveStates} />
       {showAtlas && <TileAtlas />}
-      <DevHint />
+      {process.env.NODE_ENV === "development" && <DevHint />}
     </div>
   );
 }

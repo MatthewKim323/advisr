@@ -4,60 +4,90 @@
  * ProposalDrawer — slide-in right panel that surfaces freshly-proposed
  * claims for one-tap confirm/reject.
  *
+ * Layout split (Human Delta demo cleanup):
+ *   - <ProposalDrawer /> renders the slide-in aside itself, inside the
+ *     canvas column so it's scoped to the /office viewport, not the
+ *     full page.
+ *   - <ProposalDrawer.ToggleChip /> renders a compact MANIFEST chip we
+ *     drop into OfficeHUD's top bar. Both mount points share the same
+ *     open-state + pending count via a module-local subscription store,
+ *     so we don't thread props through page.tsx or depend on a global
+ *     zustand slice.
+ *
  * Behavior:
- *   - Closed by default; slides open when `claim_proposed` fires OR the
- *     intercom toggle is clicked.
+ *   - Closed by default. `claim_proposed` events auto-open the drawer.
  *   - On open (or claim event) re-fetches `/api/proposals?status=pending`.
  *   - Confirm/reject optimistically hide the row, then PATCH. On failure
  *     we reveal the row again + surface a small error chip.
- *
- * Surface fits into the /office layer stack (z:30). The `DeanInterjectionLayer`
- * stays on z:40 so interjection bubbles still pop over the drawer if they
- * collide.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useOfficeEvents } from "@/lib/events/client";
 import type { ProposalRow } from "@/app/api/proposals/route";
 
 type RowState = "idle" | "confirming" | "rejecting" | "hidden" | "error";
 
-interface DrawerState {
+/* ── Module-local store for (open, pendingCount). Two components mount this
+   data in different parts of the tree; React Context would force a wrapper
+   we don't need. `useSyncExternalStore` keeps us concurrent-safe. */
+
+interface SharedState {
   open: boolean;
-  loading: boolean;
-  rows: ProposalRow[];
-  localState: Record<string, { state: RowState; error?: string }>;
+  pendingCount: number;
 }
 
-const INITIAL: DrawerState = {
-  open: false,
-  loading: false,
-  rows: [],
-  localState: {},
+let shared: SharedState = { open: false, pendingCount: 0 };
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+const emit = () => {
+  for (const fn of listeners) fn();
+};
+const setShared = (next: Partial<SharedState>) => {
+  shared = { ...shared, ...next };
+  emit();
 };
 
+const getSnapshot = () => shared;
+function useShared(): SharedState {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 export default function ProposalDrawer({ studentId }: { studentId: string }) {
-  const [state, setState] = useState<DrawerState>(INITIAL);
+  const { open } = useShared();
+  const [rows, setRows] = useState<ProposalRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [localState, setLocalState] = useState<
+    Record<string, { state: RowState; error?: string }>
+  >({});
 
   const load = useCallback(async () => {
-    setState((s) => ({ ...s, loading: true }));
+    setLoading(true);
     try {
       const r = await fetch(
         `/api/proposals?studentId=${encodeURIComponent(studentId)}&status=pending&limit=40`,
         { cache: "no-store" },
       );
       if (!r.ok) {
-        setState((s) => ({ ...s, loading: false }));
+        setLoading(false);
         return;
       }
       const j = (await r.json()) as { proposals?: ProposalRow[] };
-      setState((s) => ({
-        ...s,
-        loading: false,
-        rows: j.proposals ?? [],
-      }));
+      setRows(j.proposals ?? []);
     } catch {
-      setState((s) => ({ ...s, loading: false }));
+      // swallow — we just won't update rows this tick.
+    } finally {
+      setLoading(false);
     }
   }, [studentId]);
 
@@ -65,7 +95,7 @@ export default function ProposalDrawer({ studentId }: { studentId: string }) {
      claim_rejected also refresh so multi-device / cross-tab stays consistent. */
   useOfficeEvents((evt) => {
     if (evt.type === "claim_proposed") {
-      setState((s) => ({ ...s, open: true }));
+      setShared({ open: true });
       void load();
     } else if (
       evt.type === "claim_confirmed" ||
@@ -83,22 +113,24 @@ export default function ProposalDrawer({ studentId }: { studentId: string }) {
 
   const pendingCount = useMemo(
     () =>
-      state.rows.filter(
+      rows.filter(
         (r) =>
-          (state.localState[r.id]?.state ?? "idle") !== "hidden" &&
+          (localState[r.id]?.state ?? "idle") !== "hidden" &&
           r.status === "pending",
       ).length,
-    [state.rows, state.localState],
+    [rows, localState],
   );
+
+  // Bubble the count up to the toggle chip.
+  useEffect(() => {
+    setShared({ pendingCount });
+  }, [pendingCount]);
 
   const act = useCallback(
     async (id: string, action: "confirm" | "reject") => {
-      setState((s) => ({
+      setLocalState((s) => ({
         ...s,
-        localState: {
-          ...s.localState,
-          [id]: { state: action === "confirm" ? "confirming" : "rejecting" },
-        },
+        [id]: { state: action === "confirm" ? "confirming" : "rejecting" },
       }));
       try {
         const r = await fetch(`/api/proposals/${encodeURIComponent(id)}`, {
@@ -110,18 +142,12 @@ export default function ProposalDrawer({ studentId }: { studentId: string }) {
           const j = (await r.json().catch(() => ({}))) as { error?: string };
           throw new Error(j.error ?? `HTTP ${r.status}`);
         }
-        setState((s) => ({
-          ...s,
-          localState: { ...s.localState, [id]: { state: "hidden" } },
-        }));
+        setLocalState((s) => ({ ...s, [id]: { state: "hidden" } }));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        setState((s) => ({
+        setLocalState((s) => ({
           ...s,
-          localState: {
-            ...s.localState,
-            [id]: { state: "error", error: message },
-          },
+          [id]: { state: "error", error: message },
         }));
       }
     },
@@ -129,130 +155,141 @@ export default function ProposalDrawer({ studentId }: { studentId: string }) {
   );
 
   return (
-    <>
-      {/* Floating handle / toggle — brass-rimmed intercom toggle pinned right.
-          Shows a pip with pending count when claims are queued. */}
-      <button
-        type="button"
-        onClick={() => setState((s) => ({ ...s, open: !s.open }))}
-        className="pointer-events-auto absolute right-5 bottom-5 z-30 flex items-center gap-2 px-3 py-2 pixel-text transition-transform"
+    <aside
+      role="region"
+      aria-label="Proposal drawer"
+      className="absolute top-0 z-30 flex flex-col"
+      style={{
+        right: 0,
+        width: 380,
+        height: "100%",
+        background:
+          "linear-gradient(180deg, rgba(20,42,61,0.96) 0%, rgba(10,26,38,0.98) 100%)",
+        boxShadow:
+          "inset 1px 0 0 rgba(230,165,89,0.35), -14px 0 36px rgba(0,0,0,0.55)",
+        transform: open ? "translateX(0%)" : "translateX(102%)",
+        transition: "transform 320ms cubic-bezier(0.22, 0.9, 0.3, 1)",
+        pointerEvents: open ? "auto" : "none",
+      }}
+    >
+      <header
+        className="flex items-baseline justify-between px-4 py-3"
         style={{
-          fontSize: 10,
-          letterSpacing: "0.24em",
-          color: "var(--abyss-deep)",
-          background: state.open
-            ? "linear-gradient(180deg,#9c6f3b 0%,#5e4325 100%)"
-            : "linear-gradient(180deg,#e6a559 0%,#9c6f3b 100%)",
-          boxShadow:
-            "inset 0 0 0 1px rgba(10,26,38,1), 0 8px 22px rgba(230,165,89,0.3)",
-        }}
-        aria-expanded={state.open}
-        aria-label="Toggle proposal drawer"
-      >
-        <span>{state.open ? "CLOSE MANIFEST" : "OPEN MANIFEST"}</span>
-        {pendingCount > 0 && (
-          <span
-            className="pixel-text inline-flex items-center justify-center"
-            style={{
-              fontSize: 9,
-              minWidth: 18,
-              height: 18,
-              padding: "0 4px",
-              color: "var(--abyss-deep)",
-              background: "var(--coral, #ff7557)",
-              letterSpacing: "0.1em",
-              boxShadow: "inset 0 0 0 1px rgba(10,26,38,1)",
-            }}
-            aria-label={`${pendingCount} pending claims`}
-          >
-            {pendingCount}
-          </span>
-        )}
-      </button>
-
-      <aside
-        role="region"
-        aria-label="Proposal drawer"
-        className="absolute top-0 z-30 flex flex-col"
-        style={{
-          right: 0,
-          width: 380,
-          height: "100%",
           background:
-            "linear-gradient(180deg, rgba(20,42,61,0.96) 0%, rgba(10,26,38,0.98) 100%)",
-          boxShadow:
-            "inset 1px 0 0 rgba(230,165,89,0.35), -14px 0 36px rgba(0,0,0,0.55)",
-          transform: state.open ? "translateX(0%)" : "translateX(102%)",
-          transition: "transform 320ms cubic-bezier(0.22, 0.9, 0.3, 1)",
-          pointerEvents: state.open ? "auto" : "none",
+            "linear-gradient(90deg, rgba(230,165,89,0.2) 0%, rgba(230,165,89,0.04) 100%)",
+          boxShadow: "inset 0 -1px 0 rgba(230,165,89,0.35)",
         }}
       >
-        <header
-          className="flex items-baseline justify-between px-4 py-3"
+        <h2
+          className="pixel-text"
           style={{
-            background:
-              "linear-gradient(90deg, rgba(230,165,89,0.2) 0%, rgba(230,165,89,0.04) 100%)",
-            boxShadow: "inset 0 -1px 0 rgba(230,165,89,0.35)",
+            fontSize: 12,
+            color: "var(--pearl, #f1e4c5)",
+            letterSpacing: "0.24em",
           }}
         >
-          <h2
-            className="pixel-text"
-            style={{
-              fontSize: 12,
-              color: "var(--pearl, #f1e4c5)",
-              letterSpacing: "0.24em",
-            }}
-          >
-            CLAIMS MANIFEST · PENDING
-          </h2>
-          <span
-            className="pixel-text"
-            style={{
-              fontSize: 8,
-              color: "var(--brass-dim, #9c6f3b)",
-              letterSpacing: "0.28em",
-            }}
-          >
-            ARCHIVIST /v1/claims
-          </span>
-        </header>
+          CLAIMS MANIFEST · PENDING
+        </h2>
+        <button
+          type="button"
+          onClick={() => setShared({ open: false })}
+          className="pixel-text pointer-events-auto transition-colors"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.28em",
+            color: "var(--brass-dim, #9c6f3b)",
+            padding: "2px 6px",
+            boxShadow: "inset 0 0 0 1px rgba(156,111,59,0.5)",
+          }}
+          aria-label="Close manifest"
+        >
+          ✕ CLOSE
+        </button>
+      </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {state.loading && state.rows.length === 0 && (
-            <EmptyNote
-              title="SCANNING…"
-              detail="Pulling the latest proposals off the manifest."
-              tone="kelp"
-            />
-          )}
-          {!state.loading && state.rows.length === 0 && (
-            <EmptyNote
-              title="NOTHING PENDING"
-              detail="Drop new files on the deck to populate the archivist's queue. Every uploaded chunk can seed a claim."
-              tone="kelp"
-            />
-          )}
-          <ul className="flex flex-col gap-2">
-            {state.rows.map((p) => {
-              const ls = state.localState[p.id]?.state ?? "idle";
-              if (ls === "hidden") return null;
-              return (
-                <ProposalCard
-                  key={p.id}
-                  row={p}
-                  state={ls}
-                  error={state.localState[p.id]?.error}
-                  onConfirm={() => act(p.id, "confirm")}
-                  onReject={() => act(p.id, "reject")}
-                />
-              );
-            })}
-          </ul>
-        </div>
-      </aside>
-    </>
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        {loading && rows.length === 0 && (
+          <EmptyNote
+            title="SCANNING…"
+            detail="Pulling the latest proposals off the manifest."
+            tone="kelp"
+          />
+        )}
+        {!loading && rows.length === 0 && (
+          <EmptyNote
+            title="NOTHING PENDING"
+            detail="Drop new files on the deck to populate the archivist's queue. Every uploaded chunk can seed a claim."
+            tone="kelp"
+          />
+        )}
+        <ul className="flex flex-col gap-2">
+          {rows.map((p) => {
+            const ls = localState[p.id]?.state ?? "idle";
+            if (ls === "hidden") return null;
+            return (
+              <ProposalCard
+                key={p.id}
+                row={p}
+                state={ls}
+                error={localState[p.id]?.error}
+                onConfirm={() => act(p.id, "confirm")}
+                onReject={() => act(p.id, "reject")}
+              />
+            );
+          })}
+        </ul>
+      </div>
+    </aside>
   );
 }
+
+/* ── Toggle chip — rendered by OfficeHUD. Reads shared (open, pendingCount)
+   from the module-local store so the brass pill + pip stay in sync with
+   whatever the drawer itself is doing. Exported as a named component
+   rather than a static on `ProposalDrawer` because Next.js RSC boundaries
+   dislike dot-access on client components. */
+export function ProposalDrawerToggle() {
+  const { open, pendingCount } = useShared();
+  return (
+    <button
+      type="button"
+      onClick={() => setShared({ open: !shared.open })}
+      className="pointer-events-auto pixel-text inline-flex items-center gap-2 px-2.5 py-1 transition-colors"
+      style={{
+        fontSize: 10,
+        letterSpacing: "0.24em",
+        color: open ? "var(--pearl, #f1e4c5)" : "var(--brass, #e6a559)",
+        background: open ? "rgba(230,165,89,0.18)" : "rgba(10,26,38,0.7)",
+        boxShadow:
+          "inset 0 0 0 1px rgba(230,165,89,0.45), inset 0 0 0 2px rgba(10,26,38,1)",
+      }}
+      aria-expanded={open}
+      aria-label="Toggle claims manifest"
+    >
+      <span aria-hidden>⌸</span>
+      <span>MANIFEST</span>
+      {pendingCount > 0 && (
+        <span
+          className="pixel-text inline-flex items-center justify-center"
+          style={{
+            fontSize: 9,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            color: "var(--abyss-deep)",
+            background: "var(--coral, #ff7557)",
+            letterSpacing: "0.1em",
+            boxShadow: "inset 0 0 0 1px rgba(10,26,38,1)",
+          }}
+          aria-label={`${pendingCount} pending claims`}
+        >
+          {pendingCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 
 function ProposalCard({
   row,

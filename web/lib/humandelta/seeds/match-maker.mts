@@ -49,6 +49,24 @@ export const MATCH_MAKER_SEEDS: readonly SeedEntry[] = [
                                                                     maxPages: 3, name: "match-maker/ucla-wiki" },
   { url: "https://en.wikipedia.org/wiki/University_of_California,_Berkeley",
                                                                     maxPages: 3, name: "match-maker/berkeley-wiki" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_San_Diego",
+                                                                    maxPages: 3, name: "match-maker/ucsd-wiki",   note: "data science / HDSI destination" },
+  { url: "https://datascience.ucsd.edu/",                           maxPages: 2, name: "match-maker/ucsd-hdsi",   note: "HDSI program page — BS Data Science specifics" },
+  // UC system — full coverage so Match-Maker can answer "best UC for <major>"
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Santa_Barbara",
+                                                                    maxPages: 3, name: "match-maker/ucsb-wiki",   note: "physics, materials science, marine bio" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Davis",
+                                                                    maxPages: 3, name: "match-maker/ucd-wiki",    note: "#1 ag/vet school in the world" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Irvine",
+                                                                    maxPages: 3, name: "match-maker/uci-wiki",    note: "standalone ICS school, HSI, social mobility" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Santa_Cruz",
+                                                                    maxPages: 3, name: "match-maker/ucsc-wiki",   note: "astronomy, game design" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Riverside",
+                                                                    maxPages: 3, name: "match-maker/ucr-wiki",    note: "HSI, entomology, creative writing, direct-admit business" },
+  { url: "https://en.wikipedia.org/wiki/University_of_California,_Merced",
+                                                                    maxPages: 3, name: "match-maker/ucm-wiki",    note: "newest UC, first-gen majority" },
+  { url: "https://admission.universityofcalifornia.edu/",           maxPages: 3, name: "match-maker/uc-admissions", note: "system-wide admissions policy, Blue and Gold, test-blind" },
+
   { url: "https://en.wikipedia.org/wiki/University_of_Michigan",    maxPages: 3, name: "match-maker/michigan-wiki" },
   { url: "https://en.wikipedia.org/wiki/University_of_Virginia",    maxPages: 3, name: "match-maker/uva-wiki" },
   { url: "https://en.wikipedia.org/wiki/University_of_North_Carolina_at_Chapel_Hill",
@@ -65,6 +83,12 @@ export const MATCH_MAKER_SEEDS: readonly SeedEntry[] = [
                                                                     maxPages: 3, name: "match-maker/wisconsin-wiki" },
   { url: "https://en.wikipedia.org/wiki/Florida_State_University",  maxPages: 3, name: "match-maker/fsu-wiki" },
   { url: "https://en.wikipedia.org/wiki/Arizona_State_University",  maxPages: 3, name: "match-maker/asu-wiki" },
+
+  // California State University system — primary "likely/target" pool for
+  // California residents, first-gen, and HSI-seeking students. CSUF is
+  // Maria's natural target school given her OC residency + demographics.
+  { url: "https://en.wikipedia.org/wiki/California_State_University,_Fullerton",
+                                                                    maxPages: 3, name: "match-maker/csuf-wiki", note: "HSI, largest CSU, Maria's backyard" },
 
   // Hidden-gem / value picks
   { url: "https://en.wikipedia.org/wiki/Rice_University",            maxPages: 3, name: "match-maker/rice-wiki",      note: "strong value, small size" },
