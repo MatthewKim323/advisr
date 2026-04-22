@@ -11,7 +11,38 @@
 
 import { runDeanStream } from "@agents/runtime";
 import { DEMO_STUDENT_ID } from "@/lib/utils/env";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import type { UIMessage } from "ai";
+
+/**
+ * Deployment cost-guard.
+ *
+ * Dean is an expensive path — every turn hits Claude Sonnet 4.5 and
+ * potentially runs several specialist tool calls. On the public Vercel
+ * deployment we want the UI to *look* alive without actually burning
+ * the Anthropic budget (hackathon demos get scraped hard the moment a
+ * URL lands on twitter).
+ *
+ * Detection:
+ *   - `VERCEL` env var is set automatically on all Vercel runtimes.
+ *   - `NAMI_CHAT_STUB=1` is an explicit manual override for staging /
+ *     local simulation of the stub path.
+ *
+ * Local dev has neither set, so the real Anthropic call runs like
+ * normal. Demo recordings, `npm run dev`, and e2e tests are unaffected.
+ */
+const STUB_ENABLED =
+  process.env.VERCEL === "1" || process.env.NAMI_CHAT_STUB === "1";
+
+const STUB_MESSAGE = [
+  "Hey — Dean here, speaking from the surface.",
+  "",
+  "The pixel office is a live demo, so I'm parked in port on the public deployment to keep API costs from drowning the project. The full crew (match-maker, bursar, scout, draft, scout, timekeeper) only runs when the author runs Nami locally.",
+  "",
+  "If you want to see the Tsunami actually work, clone the repo and follow the README — `git clone github.com/MatthewKim323/nami && npm run dev`.",
+  "",
+  "Appreciate you diving in. ⚓",
+].join("\n");
 
 // The humandelta SDK + our tools use Node-only APIs (fetch with FormData,
 // multipart boundary handling). Force Node runtime.
@@ -44,6 +75,29 @@ export async function POST(req: Request) {
       JSON.stringify({ error: "messages[] required" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     );
+  }
+
+  // Production cost-guard: stream a canned reply instead of calling
+  // Anthropic. Writes text-start → text-delta* → text-end in AI-SDK's
+  // UI-message-stream format so <ChatPanel/> renders it identically to
+  // a real Dean response, typewriter effect and all.
+  if (STUB_ENABLED) {
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        const id = "stub-" + Date.now().toString(36);
+        writer.write({ type: "text-start", id });
+        // Emit in small word-level chunks with a tiny delay so the UI
+        // gets its usual streaming shimmer rather than dumping the
+        // whole message in one frame.
+        for (const chunk of STUB_MESSAGE.split(/(\s+)/)) {
+          if (chunk.length === 0) continue;
+          writer.write({ type: "text-delta", id, delta: chunk });
+          await new Promise((r) => setTimeout(r, 18));
+        }
+        writer.write({ type: "text-end", id });
+      },
+    });
+    return createUIMessageStreamResponse({ stream });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
