@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type RefObject} from 'react';
 import {motion, useMotionValue, useScroll, useSpring, useTransform} from 'motion/react';
 import { diveToOffice } from "@/lib/landing/routes";
+import { HeroScrollFrames } from "./HeroScrollFrames";
 
 /**
  * CritiquePage — ported from
@@ -195,9 +196,6 @@ export default function CritiquePage() {
   const heroRef = useRef<HTMLElement | null>(null);
   const heroCursorRef = useRef<HTMLDivElement | null>(null);
 
-  // hero submarine video — scrubbed by scroll instead of autoplay loop
-  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
-
   // auto-cycling log step highlight — stolen from iris's Thesis auto-advance
   const [activeStep, setActiveStep] = useState(0);
   useEffect(() => {
@@ -349,77 +347,10 @@ export default function CritiquePage() {
     };
   }, []);
 
-  /**
-   * Hero submarine video — autoplay loop + scroll-linked parallax.
-   *
-   * ORIGINAL (removed): write `video.currentTime = x` on every scroll
-   * tick to "scrub" the clip. Conceptually clean, pragmatically awful —
-   * every assignment forces a seek that decodes a keyframe + delta
-   * chain, and browsers throttle seek rates aggressively. The demo ran
-   * at ~2-5fps no matter how well-lerped the rAF loop was.
-   *
-   * NEW (iris `ScrollFrames` + Lenis inspired): let the video play
-   * natively (muted/loop/playsInline) so decode is silky 60fps, and
-   * couple scroll only to a GPU-cheap `translate3d` + `scale` parallax.
-   * Scroll still feels linked to the clip — the sub drifts down and
-   * widens as the user dives — without fighting the video decoder.
-   *
-   * Global Lenis smooth-scroll (`useLenisScroll` in CritiqueLanding)
-   * makes the scroll deltas feel weighted instead of trackpad-jittery.
-   */
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hero = heroRef.current;
-    const video = heroVideoRef.current;
-    if (!hero || !video) return;
-
-    video.muted = true;
-    video.playsInline = true;
-    video.loop = true;
-    const tryPlay = () => { void video.play().catch(() => {}); };
-    tryPlay();
-    // Safari occasionally blocks muted autoplay until any user gesture.
-    const retry = () => { tryPlay(); window.removeEventListener('pointerdown', retry); };
-    window.addEventListener('pointerdown', retry, {once: true});
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      video.pause();
-      return () => window.removeEventListener('pointerdown', retry);
-    }
-
-    let raf = 0;
-    let ticking = false;
-
-    const apply = () => {
-      ticking = false;
-      const rect = hero.getBoundingClientRect();
-      const total = rect.height + window.innerHeight;
-      const scrolled = Math.max(0, Math.min(total, window.innerHeight - rect.top));
-      const p = total > 0 ? scrolled / total : 0;
-      // Drift the clip -7% → +7% of its height; widen 1.06 → 1.12.
-      const translateY = (p - 0.5) * 14;
-      const scale = 1.06 + p * 0.06;
-      video.style.transform = `translate3d(0, ${translateY.toFixed(2)}%, 0) scale(${scale.toFixed(3)})`;
-      video.style.opacity = String(0.72 + (1 - Math.abs(p - 0.5) * 2) * 0.22);
-    };
-
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      raf = requestAnimationFrame(apply);
-    };
-
-    apply();
-    window.addEventListener('scroll', onScroll, {passive: true});
-    window.addEventListener('resize', onScroll);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      window.removeEventListener('pointerdown', retry);
-    };
-  }, []);
+  /* Hero "video" scrubbing now lives in <HeroScrollFrames/>. See that
+   * component for the frame-sequence capture+blit pipeline — it avoids
+   * `video.currentTime` entirely, which is what was bottlenecking us
+   * at 2-5fps. */
 
   const onAnchor = (e: MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href') ?? '';
@@ -507,20 +438,10 @@ export default function CritiquePage() {
       {/* hero */}
       <section className="hero" id="top" ref={heroRef}>
         <div className="hero-bg">
-          <video
-            ref={heroVideoRef}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster=""
-          >
-            <source
-              src="https://d8j0ntlcm91z4.cloudfront.net/user_3CZPMI9yqo0e85uJdS7tB0FcKsC/hf_20260419_164352_85e5afad-cee1-486c-99ec-0140a80bc9fe.mp4"
-              type="video/mp4"
-            />
-          </video>
+          <HeroScrollFrames
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_3CZPMI9yqo0e85uJdS7tB0FcKsC/hf_20260419_164352_85e5afad-cee1-486c-99ec-0140a80bc9fe.mp4"
+            heroRef={heroRef}
+          />
           <div
             className="hero-bg-fallback"
             aria-hidden="true"
