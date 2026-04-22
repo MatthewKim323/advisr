@@ -29,7 +29,7 @@ export default function OfficeHUD({
 }: Props) {
   return (
     <div
-      className="relative z-10 flex items-center justify-between gap-4 px-6 py-4"
+      className="relative z-30 flex items-center justify-between gap-4 px-6 py-4"
       style={{
         borderBottom: "1px solid rgba(230,165,89,0.22)",
         background:
@@ -39,7 +39,21 @@ export default function OfficeHUD({
       }}
     >
       <div className="flex min-w-0 items-center gap-4">
-        <Link
+        {/*
+          SURFACE button.
+          Intentionally a plain <a> (not next/link) so clicking it forces
+          a full document navigation to /. That gives us two things the
+          client-side router can't:
+            1. The landing's ASCII submarine loader replays (module-level
+               `hasBootedThisSession` flag resets on hard nav).
+            2. We tear down /office completely — Lenis, PixelWorld rAF
+               loops, HumanDelta SSE stream, Supabase realtime channel —
+               so none of those leak into the landing's main thread.
+          The UI still looks/feels identical; only the nav mechanism
+          differs from the old next/link implementation the user flagged
+          as broken.
+        */}
+        <a
           href="/"
           className="pointer-events-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2.5 py-1 transition-colors"
           style={{
@@ -55,7 +69,7 @@ export default function OfficeHUD({
         >
           <span aria-hidden>←</span>
           <span>SURFACE</span>
-        </Link>
+        </a>
 
         <div className="min-w-0">
           <div
