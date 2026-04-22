@@ -81,6 +81,35 @@ export async function POST(req: Request) {
     );
   }
 
+  // Preflight: cheapest possible round-trip to verify the Supabase host is
+  // actually reachable. If the project was paused / deleted the subdomain
+  // goes NXDOMAIN — without this check we'd die per-file with generic
+  // `TypeError: fetch failed` and leak partial work.
+  const reachable = await supabase
+    .from("source_files")
+    .select("id", { count: "exact", head: true })
+    .limit(1)
+    .then(
+      () => ({ ok: true as const }),
+      (err: unknown) => ({ ok: false as const, err }),
+    );
+  if (!reachable.ok) {
+    const raw = reachable.err instanceof Error
+      ? reachable.err.message
+      : String(reachable.err);
+    const paused = /fetch failed|ENOTFOUND|NXDOMAIN|EAI_AGAIN|getaddrinfo/i.test(
+      raw,
+    );
+    return NextResponse.json(
+      {
+        error: paused
+          ? "Supabase project appears to be paused or deleted (host unreachable). Unpause it in the Supabase dashboard, or point NEXT_PUBLIC_SUPABASE_URL at a live project."
+          : `Supabase preflight failed: ${raw}`,
+      },
+      { status: 502 },
+    );
+  }
+
   const sourceFileIds: string[] = [];
   const uploaded: UploadedFile[] = [];
   const started = Date.now();
@@ -91,12 +120,33 @@ export async function POST(req: Request) {
     const storagePath = `${studentId}/${id}-${safeName(file.name)}`;
 
     const buf = new Uint8Array(await file.arrayBuffer());
-    const { error: uploadErr } = await supabase.storage
-      .from("source-files")
-      .upload(storagePath, buf, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
+    let uploadErr: { message: string } | null = null;
+    try {
+      const res = await supabase.storage
+        .from("source-files")
+        .upload(storagePath, buf, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      uploadErr = res.error;
+    } catch (err) {
+      // Most common case here: DNS failure / project paused. The supabase-js
+      // client surfaces this as a raw `TypeError: fetch failed` bubble, which
+      // is useless to show to the user. Translate it into something actionable.
+      const msg = err instanceof Error ? err.message : String(err);
+      const looksLikeNetwork =
+        /fetch failed|NXDOMAIN|ENOTFOUND|EAI_AGAIN|getaddrinfo|socket hang up/i.test(
+          msg,
+        );
+      return NextResponse.json(
+        {
+          error: looksLikeNetwork
+            ? "Supabase is unreachable. Your project may be paused or deleted — check the Supabase dashboard and unpause it, or update NEXT_PUBLIC_SUPABASE_URL to a live project."
+            : `Storage upload threw: ${msg}`,
+        },
+        { status: 502 },
+      );
+    }
     if (uploadErr) {
       return NextResponse.json(
         { error: `Storage upload failed: ${uploadErr.message}` },
