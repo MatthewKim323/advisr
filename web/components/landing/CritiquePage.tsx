@@ -350,18 +350,22 @@ export default function CritiquePage() {
   }, []);
 
   /**
-   * Hero submarine video — scroll-scrubbed.
+   * Hero submarine video — autoplay loop + scroll-linked parallax.
    *
-   * The hero is ~100vh tall. The video is its ambient background. Instead
-   * of looping on autoplay, we map the hero's visible scroll range to
-   * `video.currentTime` — so the full clip plays exactly across the window
-   * where the user can see it (from hero-top entering viewport → hero-bottom
-   * leaving viewport). Scroll back up, it rewinds.
+   * ORIGINAL (removed): write `video.currentTime = x` on every scroll
+   * tick to "scrub" the clip. Conceptually clean, pragmatically awful —
+   * every assignment forces a seek that decodes a keyframe + delta
+   * chain, and browsers throttle seek rates aggressively. The demo ran
+   * at ~2-5fps no matter how well-lerped the rAF loop was.
    *
-   * We never call .play() in steady state — just drive currentTime. A lerp'd
-   * rAF loop smooths raw scroll deltas (trackpads emit noisy ticks; direct
-   * writes read as jittery). iOS needs a silent play+pause on metadata load
-   * to hydrate the decoder before currentTime writes take effect.
+   * NEW (iris `ScrollFrames` + Lenis inspired): let the video play
+   * natively (muted/loop/playsInline) so decode is silky 60fps, and
+   * couple scroll only to a GPU-cheap `translate3d` + `scale` parallax.
+   * Scroll still feels linked to the clip — the sub drifts down and
+   * widens as the user dives — without fighting the video decoder.
+   *
+   * Global Lenis smooth-scroll (`useLenisScroll` in CritiqueLanding)
+   * makes the scroll deltas feel weighted instead of trackpad-jittery.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -369,92 +373,51 @@ export default function CritiquePage() {
     const video = heroVideoRef.current;
     if (!hero || !video) return;
 
+    video.muted = true;
+    video.playsInline = true;
+    video.loop = true;
+    const tryPlay = () => { void video.play().catch(() => {}); };
+    tryPlay();
+    // Safari occasionally blocks muted autoplay until any user gesture.
+    const retry = () => { tryPlay(); window.removeEventListener('pointerdown', retry); };
+    window.addEventListener('pointerdown', retry, {once: true});
+
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      // honor the user — no scrubbing, just hold frame 0
       video.pause();
-      try { video.currentTime = 0; } catch {}
-      return;
+      return () => window.removeEventListener('pointerdown', retry);
     }
 
     let raf = 0;
-    let displayTime = 0;
-    let targetTime = 0;
-    let active = false;
-    let warmedUp = false;
+    let ticking = false;
 
-    const computeTarget = () => {
-      if (!video.duration || !isFinite(video.duration)) return;
+    const apply = () => {
+      ticking = false;
       const rect = hero.getBoundingClientRect();
-      // Visible-range scrub: the scroll distance across which the hero is
-      // on-screen (top entering → bottom leaving) is heroHeight + viewport.
-      // That's the window the user can "view" the video across, which is
-      // exactly what the full clip should play over.
       const total = rect.height + window.innerHeight;
-      if (total <= 0) { targetTime = 0; return; }
       const scrolled = Math.max(0, Math.min(total, window.innerHeight - rect.top));
-      const p = scrolled / total;
-      targetTime = p * video.duration;
+      const p = total > 0 ? scrolled / total : 0;
+      // Drift the clip -7% → +7% of its height; widen 1.06 → 1.12.
+      const translateY = (p - 0.5) * 14;
+      const scale = 1.06 + p * 0.06;
+      video.style.transform = `translate3d(0, ${translateY.toFixed(2)}%, 0) scale(${scale.toFixed(3)})`;
+      video.style.opacity = String(0.72 + (1 - Math.abs(p - 0.5) * 2) * 0.22);
     };
 
-    const tick = () => {
-      if (!active) return;
-      displayTime += (targetTime - displayTime) * 0.18;
-      if (Math.abs(targetTime - displayTime) > 0.004) {
-        try {
-          video.currentTime = displayTime;
-        } catch {
-          /* WebKit throws if duration hasn't fully loaded — ignore */
-        }
-      }
-      raf = requestAnimationFrame(tick);
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      raf = requestAnimationFrame(apply);
     };
 
-    const start = () => {
-      if (active) return;
-      active = true;
-      computeTarget();
-      raf = requestAnimationFrame(tick);
-    };
-    const stop = () => { active = false; cancelAnimationFrame(raf); };
-
-    const warmUp = async () => {
-      if (warmedUp) return;
-      warmedUp = true;
-      // iOS/Safari frame-scrub trick: force decoder hydration with a silent
-      // play/pause. Without this, `currentTime = x` on a never-played video
-      // is a no-op on some WebKit builds.
-      video.muted = true;
-      try { await video.play(); } catch { /* autoplay blocked — desktop is fine */ }
-      video.pause();
-      try { video.currentTime = 0; } catch {}
-    };
-
-    const onMeta = () => { void warmUp().then(computeTarget); };
-    const onScroll = () => { computeTarget(); };
-    const onResize = () => { computeTarget(); };
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) start(); else stop();
-        }
-      },
-      {root: null, rootMargin: '200px 0px', threshold: 0},
-    );
-
-    if (video.readyState >= 1) onMeta();
-    else video.addEventListener('loadedmetadata', onMeta, {once: true});
-
+    apply();
     window.addEventListener('scroll', onScroll, {passive: true});
-    window.addEventListener('resize', onResize);
-    io.observe(hero);
+    window.addEventListener('resize', onScroll);
 
     return () => {
-      stop();
-      io.disconnect();
+      cancelAnimationFrame(raf);
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onResize);
-      video.removeEventListener('loadedmetadata', onMeta);
+      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('pointerdown', retry);
     };
   }, []);
 
@@ -546,7 +509,9 @@ export default function CritiquePage() {
         <div className="hero-bg">
           <video
             ref={heroVideoRef}
+            autoPlay
             muted
+            loop
             playsInline
             preload="auto"
             poster=""
