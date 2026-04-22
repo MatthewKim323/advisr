@@ -91,6 +91,9 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
   // so the scramble actually animates in between integer progress bumps.
   const [frame, setFrame] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
+  // Scramble uses Math.random → must be client-only to avoid hydration
+  // mismatches. Keep the SSR output as null and let the client mount it.
+  const [mounted, setMounted] = useState(false);
 
   const startRef = useRef(0);
   const revealedAtRef = useRef<number[]>(
@@ -99,6 +102,7 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
   const titleRevealedAtRef = useRef(0);
 
   useEffect(() => {
+    setMounted(true);
     startRef.current = performance.now();
     titleRevealedAtRef.current = startRef.current;
     let raf = 0;
@@ -174,6 +178,8 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
   const rivets = String(Math.round((progress / 100) * 847)).padStart(3, "0");
   const bar = useMemo(() => buildBar(progress, 40), [progress]);
   const bootLine = pickBootLine(progress);
+
+  if (!mounted) return null;
 
   return (
     <AnimatePresence>
